@@ -1,8 +1,9 @@
 const mongoose = require("mongoose");
-const isValidObjectId = mongoose.Types.ObjectId.isValid;
-
 const UserProfile = require('../Models/UserProfile');
 const User = require("../Models/User");
+const isValidObjectId = mongoose.Types.ObjectId.isValid;
+
+
 
 // Get all user Profiles
 exports.getAllUserProfile = async (req, res) => {
@@ -25,7 +26,7 @@ exports.getUserProfileById = async (req, res) => {
     }
 };
 
-// Create a new user Profile
+// Utility function to check if an ObjectId is valid
 exports.createUserProfile = async (req, res) => {
     try {
         const {
@@ -33,10 +34,10 @@ exports.createUserProfile = async (req, res) => {
             bio,
             tags,
             achievements,
-            questionIds,
-            answerIds,
-            followers,
-            following,
+            questionIds = [],
+            answerIds = [],
+            followers = [],
+            following = [],
             avgRating,
             totalPoints,
             LinkedInusername,
@@ -45,8 +46,9 @@ exports.createUserProfile = async (req, res) => {
             backupemail,
             imageUrl,
             noOfFollowers,
-            noOfFollowing 
+            noOfFollowing
         } = req.body;
+
         // Validate required fields
         if (!userid) {
             return res.status(400).json({ error: "User ID is required." });
@@ -57,10 +59,10 @@ exports.createUserProfile = async (req, res) => {
         }
 
         // Check for invalid ObjectIds
-        const invalidQuestionIds = questionIds?.filter((id) => !isValidObjectId(id));
-        const invalidAnswerIds = answerIds?.filter((id) => !isValidObjectId(id));
-        const invalidFollowers = followers?.filter((id) => !isValidObjectId(id));
-        const invalidFollowing = following?.filter((id) => !isValidObjectId(id));
+        const invalidQuestionIds = questionIds.filter(id => !isValidObjectId(id));
+        const invalidAnswerIds = answerIds.filter(id => !isValidObjectId(id));
+        const invalidFollowers = followers.filter(id => !isValidObjectId(id));
+        const invalidFollowing = following.filter(id => !isValidObjectId(id));
 
         if (invalidQuestionIds.length || invalidAnswerIds.length || invalidFollowers.length || invalidFollowing.length) {
             return res.status(400).json({
@@ -72,7 +74,7 @@ exports.createUserProfile = async (req, res) => {
             });
         }
 
-        // Fetch user name for image URL
+        // Fetch user for validation
         const user = await User.findById(userid);
         if (!user) {
             return res.status(404).json({ error: "User not found." });
@@ -96,16 +98,22 @@ exports.createUserProfile = async (req, res) => {
             backupemail,
             imageUrl,
             noOfFollowers,
-            noOfFollowing 
+            noOfFollowing
         };
 
         // Save the user profile
         const userProfile = new UserProfile(userProfileData);
         await userProfile.save();
 
+        // Assign backup email to the user if provided
+        if (backupemail) {
+            user.backupemail = backupemail;
+            await user.save();
+        }
+
         res.status(201).json({ message: "User profile created successfully!", userProfile });
     } catch (err) {
-        res.status(400).json({ error: err.message });
+        res.status(500).json({ error: err.message });
     }
 };
 

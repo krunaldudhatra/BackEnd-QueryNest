@@ -63,7 +63,7 @@ exports.registerUser = async (req, res) => {
     // Generate OTP and set expiration
     const otp = generateOTP();
     const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // OTP expires in 5 minutes
- 
+
     // Create new user
     const newUser = new User({
       name,
@@ -72,7 +72,7 @@ exports.registerUser = async (req, res) => {
       password: hashedPassword,
       otp,
       otpExpires,
-     });
+    });
 
     await newUser.save();
 
@@ -102,7 +102,7 @@ exports.verifyOTP = async (req, res) => {
     // OTP verified — update fields
     user.otp = null;
     user.otpExpires = null;
-     user.verified = true; // Mark user as verified
+    user.verified = true; // Mark user as verified
     await user.save();
 
     // Send confirmation email
@@ -138,10 +138,10 @@ exports.resendOTP = async (req, res) => {
     // Generate new OTP and extend expiration
     const newOTP = generateOTP();
     const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiration
- 
+
     user.otp = newOTP;
     user.otpExpires = otpExpires;
- 
+
     await user.save();
 
     // Resend OTP email
@@ -156,10 +156,12 @@ exports.resendOTP = async (req, res) => {
 // Login controller
 exports.loginUser = async (req, res) => {
   try {
-    const { clgemail, password } = req.body;
+    const { email, password } = req.body;
 
     // Find user by email
-    const user = await User.findOne({ clgemail });
+    const user = await User.findOne({
+      $or: [{ clgemail: email }, { backupemail: email }],
+    });
     if (!user) {
       return res.status(404).json({ error: "User not found!" });
     }
@@ -172,7 +174,7 @@ exports.loginUser = async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id, clgemail: user.clgemail },
+      { userId: user._id, email:email },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
@@ -180,6 +182,7 @@ exports.loginUser = async (req, res) => {
     res.status(200).json({
       message: "Login successful!",
       userId: user._id,
+      email:email,
       token,
     });
   } catch (err) {
@@ -190,9 +193,13 @@ exports.loginUser = async (req, res) => {
 // Request Password Reset (Send Passcode)
 exports.requestPasswordReset = async (req, res) => {
   try {
-    const { clgemail } = req.body;
+    const { email } = req.body;
 
-    const user = await User.findOne({ clgemail });
+    // Find user by either clgemail or backupemail
+    const user = await User.findOne({
+      $or: [{ clgemail: email }, { backupemail: email }],
+    });
+
     if (!user) return res.status(404).json({ error: "User not found!" });
 
     // Generate passcode and set expiration
@@ -204,93 +211,110 @@ exports.requestPasswordReset = async (req, res) => {
     user.resetPasscodeExpires = passcodeExpires;
     await user.save();
 
-    // Send passcode email
-    await transporter.sendMail({
-      from: EMAIL_USER,
-      to: clgemail,
-      subject: "Reset Your Password - QueryNest",
-      html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 500px; margin: auto; background-color: #fbf5ee;">
-                <h2 style="color: #2c3e50; text-align: center;">Password Reset Request</h2>
-                <p style="font-size: 16px; text-align: center;">Use the passcode below to reset your password:</p>
-                <div style="font-size: 24px; font-weight: bold; text-align: center; padding: 15px; background-color: #dec498; color: #fbf5ee; border-radius: 5px;">
-                    ${resetPasscode}
-                </div>
-                <p style="font-size: 14px; text-align: center; color: #e74c3c; margin: 20px;">This passcode will expire in 20 minutes.</p>
-                <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-                <div style="text-align: center;">
-                    <p style="font-size: 12px; color: #7f8c8d;">If you didn’t request this, please ignore this email or contact support.</p>
-                    <p style="font-size: 12px; color: #7f8c8d;">&copy; ${new Date().getFullYear()} QueryNest. All rights reserved.</p>
-                </div>
-            </div>`,
-    });
+    // Determine the recipient email
+    const recipientEmail = user.clgemail || user.backupemail;
 
-    res.status(200).json({
-      message: "Passcode sent to your email. It will expire in 20 minutes.",
-    });
+    // Send passcode email
+    if (recipientEmail) {
+      await transporter.sendMail({
+        from: EMAIL_USER,
+        to: recipientEmail,
+        subject: "Reset Your Password - QueryNest",
+        html: `
+                <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 500px; margin: auto; background-color: #fbf5ee;">
+                    <h2 style="color: #2c3e50; text-align: center;">Password Reset Request</h2>
+                    <p style="font-size: 16px; text-align: center;">Use the passcode below to reset your password:</p>
+                    <div style="font-size: 24px; font-weight: bold; text-align: center; padding: 15px; background-color: #dec498; color: #fbf5ee; border-radius: 5px;">
+                        ${resetPasscode}
+                    </div>
+                    <p style="font-size: 14px; text-align: center; color: #e74c3c; margin: 20px;">This passcode will expire in 20 minutes.</p>
+                    <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+                    <div style="text-align: center;">
+                        <p style="font-size: 12px; color: #7f8c8d;">If you didn’t request this, please ignore this email or contact support.</p>
+                        <p style="font-size: 12px; color: #7f8c8d;">&copy; ${new Date().getFullYear()} QueryNest. All rights reserved.</p>
+                    </div>
+                </div>`,
+      });
+
+      res.status(200).json({
+        message: `Passcode sent to ${recipientEmail}. It will expire in 20 minutes.`,
+      });
+    } else {
+      res.status(400).json({ error: "No valid email found to send passcode." });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-//  passcode verify
+// Passcode Verification
 exports.verifyPasscode = async (req, res) => {
   try {
-    const { clgemail, passcode } = req.body;
-
-    const user = await User.findOne({ clgemail });
-    if (!user) return res.status(404).json({ error: "User not found!" });
-
-    // Check if the passcode is valid and not expired
-    if (user.resetPasscode !== passcode) {
-      return res.status(400).json({ error: "Invalid or expired passcode!" });
-    } else if (user.resetPasscodeExpires < new Date()) {
-      return res.status(400).json({ error: "Invalid or expired passcode!" });
+    const { email, passcode } = req.body;
+    if (!email || !passcode) {
+      return res.status(400).json({ error: "Email and passcode are required!" });
     }
-    res.status(200).json({ message: "Passcode verified successfully!" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
 
-// Reset Password with Passcode
-exports.resetPassword = async (req, res) => {
-  try {
-    const { clgemail, newPassword } = req.body;
-
-    const user = await User.findOne({ clgemail });
-
-    if (!user) return res.status(404).json({ error: "User not found!" });
-
-    // Hash the new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword;
-
-    // Clear reset fields
-    user.resetPasscode = undefined;
-    user.resetPasscodeExpires = undefined;
-
-    await user.save();
-
-    // Send confirmation email
-    await transporter.sendMail({
-      from: EMAIL_USER,
-      to: clgemail,
-      subject: "Password Reset Successful 🎉",
-      html: `
-                  <h1>Password Reset Successful</h1>
-                  <p>Your password has been successfully reset. You can now log in with your new password.</p>
-                  <p>If you didn’t perform this action, please contact support immediately.</p>
-              `,
+    // Find user by college or backup email
+    const user = await User.findOne({
+      $or: [{ clgemail: email }, { backupemail: email }],
     });
 
-    res
-      .status(200)
-      .json({ message: "Password reset successful! You can now log in." });
+    if (!user) return res.status(404).json({ error: "User not found!" });
+
+    // Validate passcode expiration
+    if (!user.resetPasscode || user.resetPasscodeExpires < new Date()) {
+      return res.status(400).json({ error: "Invalid or expired passcode!" });
+    }
+
+    // Check if passcode matches
+    if (user.resetPasscode !== passcode) {
+      return res.status(400).json({ error: "Incorrect passcode!" });
+    }
+
+    // Determine primary and fallback email
+    const primaryEmail = user.clgemail;
+    const fallbackEmail = user.backupemail;
+
+    // Send confirmation email
+    try {
+      await transporter.sendMail({
+        from: EMAIL_USER,
+        to: primaryEmail || fallbackEmail,
+        subject: "Password Reset Successful 🎉",
+        html: `
+          <h1>Password Reset Successful</h1>
+          <p>Your password has been successfully reset. You can now log in with your new password.</p>
+          <p>If you didn’t perform this action, please contact support immediately.</p>
+        `,
+      });
+    } catch (emailError) {
+      console.error("Error sending email to primary:", emailError.message);
+      if (primaryEmail && fallbackEmail) {
+        try {
+          await transporter.sendMail({
+            from: EMAIL_USER,
+            to: fallbackEmail,
+            subject: "Password Reset Successful 🎉",
+            html: `
+              <h1>Password Reset Successful</h1>
+              <p>Your password has been successfully reset. You can now log in with your new password.</p>
+              <p>If you didn’t perform this action, please contact support immediately.</p>
+            `,
+          });
+        } catch (backupEmailError) {
+          console.error("Error sending email to backup:", backupEmailError.message);
+        }
+      }
+    }
+
+    return res.status(200).json({ message: "Passcode verified successfully!" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Server error:", err.message);
+    return res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 // Get all user
 exports.getAllUser = async (req, res) => {
