@@ -271,48 +271,87 @@ exports.verifyPasscode = async (req, res) => {
     if (user.resetPasscode !== passcode) {
       return res.status(400).json({ error: "Incorrect passcode!" });
     }
-
-    // Determine primary and fallback email
-    const primaryEmail = user.clgemail;
-    const fallbackEmail = user.backupemail;
-
-    // Send confirmation email
-    try {
-      await transporter.sendMail({
-        from: EMAIL_USER,
-        to: primaryEmail || fallbackEmail,
-        subject: "Password Reset Successful 🎉",
-        html: `
-          <h1>Password Reset Successful</h1>
-          <p>Your password has been successfully reset. You can now log in with your new password.</p>
-          <p>If you didn’t perform this action, please contact support immediately.</p>
-        `,
-      });
-    } catch (emailError) {
-      console.error("Error sending email to primary:", emailError.message);
-      if (primaryEmail && fallbackEmail) {
-        try {
-          await transporter.sendMail({
-            from: EMAIL_USER,
-            to: fallbackEmail,
-            subject: "Password Reset Successful 🎉",
-            html: `
-              <h1>Password Reset Successful</h1>
-              <p>Your password has been successfully reset. You can now log in with your new password.</p>
-              <p>If you didn’t perform this action, please contact support immediately.</p>
-            `,
-          });
-        } catch (backupEmailError) {
-          console.error("Error sending email to backup:", backupEmailError.message);
-        }
-      }
-    }
-
     return res.status(200).json({ message: "Passcode verified successfully!" });
   } catch (err) {
     console.error("Server error:", err.message);
     return res.status(500).json({ error: "Internal server error" });
   }
+};
+
+
+// Reset Password
+exports.resetPassword = async (req, res) => {
+    try {
+        const { email, newPassword } = req.body;
+
+        if (!email || !newPassword) {
+            return res.status(400).json({ error: "Email and new password are required!" });
+        }
+
+        // Find user by college or backup email
+        const user = await User.findOne({
+            $or: [{ clgemail: email }, { backupemail: email }],
+        });
+
+        if (!user) {
+            return res.status(404).json({ error: "User not found!" });
+        }
+
+        // Hash the new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update user's password
+        user.password = hashedPassword;
+
+        // Clear reset passcode fields (if reset flow is used)
+        user.resetPasscode = null;
+        user.resetPasscodeExpires = null;
+
+        await user.save();
+
+        // Determine primary and fallback email
+        const primaryEmail = user.clgemail;
+        const fallbackEmail = user.backupemail;
+
+        // Send confirmation email
+        try {
+            await transporter.sendMail({
+                from: EMAIL_USER,
+                to: primaryEmail || fallbackEmail,
+                subject: "Password Reset Successful 🎉",
+                html: `
+                    <h1>Password Reset Successful</h1>
+                    <p>Your password has been successfully reset. You can now log in with your new password.</p>
+                    <p>If you didn’t perform this action, please contact support immediately.</p>
+                `,
+            });
+        } catch (emailError) {
+            console.error("Error sending email to primary:", emailError.message);
+
+            if (primaryEmail && fallbackEmail) {
+                try {
+                    await transporter.sendMail({
+                        from: EMAIL_USER,
+                        to: fallbackEmail,
+                        subject: "Password Reset Successful 🎉",
+                        html: `
+                            <h1>Password Reset Successful</h1>
+                            <p>Your password has been successfully reset. You can now log in with your new password.</p>
+                            <p>If you didn’t perform this action, please contact support immediately.</p>
+                        `,
+                    });
+                } catch (backupEmailError) {
+                    console.error("Error sending email to backup:", backupEmailError.message);
+                }
+            }
+        }
+
+        return res.status(200).json({ message: "Password reset successful!" });
+
+    } catch (error) {
+        console.error("Server error:", error.message);
+        return res.status(500).json({ error: "Internal server error" });
+    }
 };
 
 

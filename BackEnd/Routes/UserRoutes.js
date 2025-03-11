@@ -20,6 +20,7 @@ router.post("/register", registerUser);
 router.post("/verify-otp", verifyOTP);
 router.post("/resend-otp", resendOTP);
 router.post("/login", loginUser);
+
 router.post("/reset-request", requestPasswordReset);
 
 router.post("/verifyPasscode", verifyPasscode);
