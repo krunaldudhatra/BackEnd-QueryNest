@@ -8,28 +8,55 @@ const UserProfileSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    bio: { type: String },
-    tags: [{ type: String }],
+    clgemail:{type:String,unique:true},
+    backupemail: { type: String, unique: true },
+    bio: { type: String, required: true },
+    tags: {
+      type: [{ type: String }],
+      validate: {
+        validator: function (tags) {
+          return tags.length <= 3;
+        },
+        message: "You can only have up to 3 tags.",
+      },
+    },
     LinkedInusername: { type: String, required: true, unique: true },
     Githubusername: { type: String, required: true, unique: true },
     noOfQuestions: { type: Number, default: 0 },
     Graduation: { type: String },
     noOfAnswers: { type: Number, default: 0 },
-    avgRating: { type: Number, default: 0 },
-    backupemail: { type: String },
-    totalPoints: { type: Number, default: 0 },
-    questionIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Question" }],
-    answerIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Answer" }],
-    achievements: [{ type: String }],
-    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    avgRating: {
+      type: Number,
+      default: 0,
+      min: [0, "Rating cannot be negative."],
+      max: [5, "Rating cannot be greater than 5."],
+    },
 
-    // Image URL
-    imageUrl: { type: String },
-
-    // Permanent fields for counts
+    totalPoints: {
+      type: Number,
+      default: 0,
+      min: [0, "Total points cannot be negative."],
+    },
+    questionIds: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "Question", default: [] },
+    ],
+    answerIds: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "Answer", default: [] },
+    ],
+    achievements: [{ type: String, default: [] }],
+    followers: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "User", default: [] },
+    ],
+    following: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "User", default: [] },
+    ],
     noOfFollowers: { type: Number, default: 0 },
     noOfFollowing: { type: Number, default: 0 },
+    imageUrl: {
+      type: String,
+      default:
+        "https://ui-avatars.com/api/?name=User&background=random&color=fff",
+    },
   },
   { timestamps: true }
 );
@@ -55,7 +82,6 @@ UserProfileSchema.pre("save", async function (next) {
   this.noOfFollowers = this.followers.length;
   this.noOfFollowing = this.following.length;
 
-  // Populate the user to get the name for the image
   if (this.isNew || this.isModified("userid")) {
     const user = await mongoose.model("User").findById(this.userid);
     if (user && user.name) {

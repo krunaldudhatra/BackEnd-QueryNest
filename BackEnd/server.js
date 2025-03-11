@@ -49,7 +49,6 @@ mongoose
   .connect(MONGO_URI)
   .then(() => {
     console.log("✅ MongoDB Connected Successfully!");
-    startCleanupJob();
   })
   .catch((err) => console.log("Failed to connect to MongoDB:", err));
   

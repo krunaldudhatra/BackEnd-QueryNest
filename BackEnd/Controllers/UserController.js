@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const User = require("../Models/User");
+const Temp = require("../Models/Temp");
 const UserProfile = require("../Models/UserProfile");
 const nodemailer = require("nodemailer");
 const bcrypt = require("bcryptjs");
@@ -65,14 +66,13 @@ exports.registerUser = async (req, res) => {
     const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // OTP expires in 5 minutes
 
     // Create new user
-    const newUser = new User({
+    const newUser = new Temp({
       name,
       username,
       clgemail,
       password: hashedPassword,
       otp,
-      otpExpires,
-      
+      otpExpires
     });
 
     await newUser.save();
@@ -88,38 +88,48 @@ exports.registerUser = async (req, res) => {
 
 // Verify OTP
 exports.verifyOTP = async (req, res) => {
-  try {
-    const { clgemail, otp } = req.body;
-
-    const user = await User.findOne({ clgemail });
-
-    if (!user) return res.status(404).json({ error: "User not found!" });
-
-    // Check OTP and expiration
-    if (user.otp != otp || user.otpExpires < new Date()) {
-      return res.status(400).json({ error: "Invalid or expired OTP!" });
+    try {
+      const { clgemail, otp } = req.body;
+  
+      // Find user in Temp schema
+      const tempUser = await Temp.findOne({ clgemail });
+  
+      if (!tempUser) return res.status(404).json({ error: "User not found!" });
+  
+      // Check OTP and expiration
+      if (tempUser.otp !== otp || tempUser.otpExpires < new Date()) {
+        return res.status(400).json({ error: "Invalid or expired OTP!" });
+      }
+  
+      // Create a new user in the User schema
+      const newUser = new User({
+        name: tempUser.name,
+        username: tempUser.username,
+        clgemail: tempUser.clgemail,
+        password: tempUser.password,
+        verified: true, // Mark as verified
+      });
+  
+      await newUser.save();
+  
+      // Remove the user from Temp schema
+      await Temp.deleteOne({ clgemail });
+  
+      // Send confirmation email
+      await transporter.sendMail({
+        from: EMAIL_USER,
+        to: clgemail,
+        subject: "Registration Successful 🎉",
+        html: `<h1>Congratulations, ${tempUser.name}!</h1>
+                     <p>Your registration is complete. Welcome to our platform! 🎉</p>`,
+      });
+  
+      res.status(200).json({ message: "Registration successful!" });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-
-    // OTP verified — update fields
-    user.otp = null;
-    user.otpExpires = null;
-    user.verified = true; // Mark user as verified
-    await user.save();
-
-    // Send confirmation email
-    await transporter.sendMail({
-      from: EMAIL_USER,
-      to: clgemail,
-      subject: "Registration Successful 🎉",
-      html: `<h1>Congratulations, ${user.name}!</h1>
-                   <p>Your registration is complete. Welcome to our platform! 🎉</p>`,
-    });
-
-    res.status(200).json({ message: "Registration successful!" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
+  };
+  
 
 // Resend OTP
 exports.resendOTP = async (req, res) => {
