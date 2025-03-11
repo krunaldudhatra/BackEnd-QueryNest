@@ -11,6 +11,9 @@ const UserSchema = new mongoose.Schema(
     otpExpires: { type: Date },
     verified: { type: Boolean, default: false }, // Track verification status
 
+    resetPasscode: { type: String },
+    resetPasscodeExpires: { type: Date },
+
     otpDeletionTime: { 
       type: Date,
       index: {
