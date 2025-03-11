@@ -7,8 +7,8 @@ const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN;
-const EMAIL_PASS=process.env.EMAIL_PASS
-const EMAIL_USER=process.env.EMAIL_USER;
+const EMAIL_PASS = process.env.EMAIL_PASS;
+const EMAIL_USER = process.env.EMAIL_USER;
 // Configure Nodemailer
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -230,11 +230,9 @@ exports.requestPasswordReset = async (req, res) => {
             </div>`,
     });
 
-    res
-      .status(200)
-      .json({
-        message: "Passcode sent to your email. It will expire in 20 minutes.",
-      });
+    res.status(200).json({
+      message: "Passcode sent to your email. It will expire in 20 minutes.",
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -242,65 +240,63 @@ exports.requestPasswordReset = async (req, res) => {
 
 //  passcode verify
 exports.verifyPasscode = async (req, res) => {
-    try {
-      const { clgemail, passcode } = req.body;
-  
-      const user = await User.findOne({ clgemail });
-      if (!user) return res.status(404).json({ error: "User not found!" });
-  
-      // Check if the passcode is valid and not expired
-      if (
-        user.resetPasscode !== passcode ||
-        user.resetPasscodeExpires < new Date()
-      ) {
-        return res.status(400).json({ error: "Invalid or expired passcode!" });
-      }
-  
-      res.status(200).json({ message: "Passcode verified successfully!" });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+  try {
+    const { clgemail, passcode } = req.body;
+
+    const user = await User.findOne({ clgemail });
+    if (!user) return res.status(404).json({ error: "User not found!" });
+
+    // Check if the passcode is valid and not expired
+    if (user.resetPasscode !== passcode) {
+      return res.status(400).json({ error: "Invalid or expired passcode!" });
+    } else if (user.resetPasscodeExpires < new Date()) {
+      return res.status(400).json({ error: "Invalid or expired passcode!" });
     }
-  };
-  
+    res.status(200).json({ message: "Passcode verified successfully!" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Reset Password with Passcode
 exports.resetPassword = async (req, res) => {
-    try {
-      const { clgemail, newPassword } = req.body;
-      
-      const user = await User.findOne({ clgemail });
-  
-      if (!user) return res.status(404).json({ error: "User not found!" });
-  
-      // Hash the new password
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      user.password = hashedPassword;
-  
-      // Clear reset fields
-      user.resetPasscode = undefined;
-      user.resetPasscodeExpires = undefined;
-  
-      await user.save();
-  
-      // Send confirmation email
-      await transporter.sendMail({
-        from: EMAIL_USER,
-        to: clgemail,
-        subject: "Password Reset Successful 🎉",
-        html: `
+  try {
+    const { clgemail, newPassword } = req.body;
+
+    const user = await User.findOne({ clgemail });
+
+    if (!user) return res.status(404).json({ error: "User not found!" });
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+
+    // Clear reset fields
+    user.resetPasscode = undefined;
+    user.resetPasscodeExpires = undefined;
+
+    await user.save();
+
+    // Send confirmation email
+    await transporter.sendMail({
+      from: EMAIL_USER,
+      to: clgemail,
+      subject: "Password Reset Successful 🎉",
+      html: `
                   <h1>Password Reset Successful</h1>
                   <p>Your password has been successfully reset. You can now log in with your new password.</p>
                   <p>If you didn’t perform this action, please contact support immediately.</p>
               `,
-      });
-  
-      res
-        .status(200)
-        .json({ message: "Password reset successful! You can now log in." });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  };
-  
+    });
+
+    res
+      .status(200)
+      .json({ message: "Password reset successful! You can now log in." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Get all user
 exports.getAllUser = async (req, res) => {
   try {

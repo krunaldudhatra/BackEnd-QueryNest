@@ -1,4 +1,4 @@
-// Routes for UserDetails
+// Routes for UserProfile
 const express = require("express");
 const router = express.Router();
 const {

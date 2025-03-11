@@ -21,6 +21,7 @@ router.post("/verify-otp", verifyOTP);
 router.post("/resend-otp", resendOTP);
 router.post("/login", loginUser);
 router.post("/reset-request", requestPasswordReset);
+
 router.post("/verifyPasscode", verifyPasscode);
 router.post("/reset-password", resetPassword);
 
