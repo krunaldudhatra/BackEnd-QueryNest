@@ -1,5 +1,8 @@
 const mongoose = require("mongoose");
+const isValidObjectId = mongoose.Types.ObjectId.isValid;
+
 const UserProfile = require('../Models/UserProfile');
+const User = require("../Models/User");
 
 // Get all user Profiles
 exports.getAllUserProfile = async (req, res) => {
@@ -44,7 +47,6 @@ exports.createUserProfile = async (req, res) => {
             noOfFollowers,
             noOfFollowing 
         } = req.body;
-
         // Validate required fields
         if (!userid) {
             return res.status(400).json({ error: "User ID is required." });

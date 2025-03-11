@@ -161,10 +161,7 @@ exports.resendOTP = async (req, res) => {
 // Login controller
 exports.loginUser = async (req, res) => {
   try {
-    console.log("✅✅✅✅✅✅✅✅");
     const { clgemail, password } = req.body;
-    console.log("clgemail:" + clgemail);
-    console.log(" password:" + password);
 
     // Find user by email
     const user = await User.findOne({ clgemail });
@@ -190,9 +187,7 @@ exports.loginUser = async (req, res) => {
       userId: user._id,
       token,
     });
-    console.log("✅✅✅✅✅✅✅✅");
   } catch (err) {
-    console.log("🚀🚀🚀🚀🚀🚀🚀");
     res.status(500).json({ error: err.message });
   }
 };
@@ -245,6 +240,28 @@ exports.requestPasswordReset = async (req, res) => {
   }
 };
 
+//  passcode verify
+exports.verifyPasscode = async (req, res) => {
+    try {
+      const { clgemail, passcode } = req.body;
+  
+      const user = await User.findOne({ clgemail });
+      if (!user) return res.status(404).json({ error: "User not found!" });
+  
+      // Check if the passcode is valid and not expired
+      if (
+        user.resetPasscode !== passcode ||
+        user.resetPasscodeExpires < new Date()
+      ) {
+        return res.status(400).json({ error: "Invalid or expired passcode!" });
+      }
+  
+      res.status(200).json({ message: "Passcode verified successfully!" });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  };
+  
 // Reset Password with Passcode
 exports.resetPassword = async (req, res) => {
   try {
