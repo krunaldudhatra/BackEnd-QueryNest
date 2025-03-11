@@ -14,11 +14,15 @@ const UserSchema = new mongoose.Schema(
     resetPasscode: { type: String },
     resetPasscodeExpires: { type: Date },
 
+    // Delete only if OTP expires and the user is still not verified
     otpDeletionTime: { 
       type: Date,
       index: {
         expireAfterSeconds: 120, // Delete 2 mins after OTP expires
-        partialFilterExpression: { verified: false } // Delete only if NOT verified
+        partialFilterExpression: { 
+          verified: false, 
+          otpExpires: { $exists: true, $lte: new Date() } // Only consider OTP expiration
+        } 
       }
     },
 
