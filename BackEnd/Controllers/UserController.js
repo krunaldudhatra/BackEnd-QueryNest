@@ -63,8 +63,7 @@ exports.registerUser = async (req, res) => {
     // Generate OTP and set expiration
     const otp = generateOTP();
     const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // OTP expires in 5 minutes
-    const otpDeletionTime = new Date(otpExpires.getTime() + 2 * 60 * 1000); // Delete 2 mins after OTP expiry
-
+ 
     // Create new user
     const newUser = new User({
       name,
@@ -73,8 +72,7 @@ exports.registerUser = async (req, res) => {
       password: hashedPassword,
       otp,
       otpExpires,
-      otpDeletionTime,
-    });
+     });
 
     await newUser.save();
 
@@ -104,8 +102,7 @@ exports.verifyOTP = async (req, res) => {
     // OTP verified — update fields
     user.otp = null;
     user.otpExpires = null;
-    user.otpDeletionTime = null; // Clear deletion time
-    user.verified = true; // Mark user as verified
+     user.verified = true; // Mark user as verified
     await user.save();
 
     // Send confirmation email
@@ -141,12 +138,10 @@ exports.resendOTP = async (req, res) => {
     // Generate new OTP and extend expiration
     const newOTP = generateOTP();
     const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiration
-    const otpDeletionTime = new Date(otpExpires.getTime() + 2 * 60 * 1000); // Delete 2 mins after new expiry
-
+ 
     user.otp = newOTP;
     user.otpExpires = otpExpires;
-    user.otpDeletionTime = otpDeletionTime;
-
+ 
     await user.save();
 
     // Resend OTP email
