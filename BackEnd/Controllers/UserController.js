@@ -264,51 +264,43 @@ exports.verifyPasscode = async (req, res) => {
   
 // Reset Password with Passcode
 exports.resetPassword = async (req, res) => {
-  try {
-    const { clgemail, passcode, newPassword } = req.body;
-
-    const user = await User.findOne({ clgemail });
-
-    if (!user) return res.status(404).json({ error: "User not found!" });
-
-    // Check passcode and expiration
-    if (
-      user.resetPasscode !== passcode ||
-      user.resetPasscodeExpires < new Date()
-    ) {
-      return res.status(400).json({ error: "Invalid or expired passcode!" });
+    try {
+      const { clgemail, newPassword } = req.body;
+      
+      const user = await User.findOne({ clgemail });
+  
+      if (!user) return res.status(404).json({ error: "User not found!" });
+  
+      // Hash the new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      user.password = hashedPassword;
+  
+      // Clear reset fields
+      user.resetPasscode = undefined;
+      user.resetPasscodeExpires = undefined;
+  
+      await user.save();
+  
+      // Send confirmation email
+      await transporter.sendMail({
+        from: EMAIL_USER,
+        to: clgemail,
+        subject: "Password Reset Successful 🎉",
+        html: `
+                  <h1>Password Reset Successful</h1>
+                  <p>Your password has been successfully reset. You can now log in with your new password.</p>
+                  <p>If you didn’t perform this action, please contact support immediately.</p>
+              `,
+      });
+  
+      res
+        .status(200)
+        .json({ message: "Password reset successful! You can now log in." });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword;
-
-    // Clear reset fields
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpires = undefined;
-
-    await user.save();
-
-    // Send confirmation email
-    await transporter.sendMail({
-      from:  EMAIL_USER,
-      to: clgemail,
-      subject: "Password Reset Successful 🎉",
-      html: `
-                <h1>Password Reset Successful</h1>
-                <p>Your password has been successfully reset. You can now log in with your new password.</p>
-                <p>If you didn’t perform this action, please contact support immediately.</p>
-            `,
-    });
-
-    res
-      .status(200)
-      .json({ message: "Password reset successful! You can now log in." });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
+  };
+  
 // Get all user
 exports.getAllUser = async (req, res) => {
   try {
