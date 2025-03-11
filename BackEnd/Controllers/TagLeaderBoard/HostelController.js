@@ -1,0 +1,1 @@
+const Hostel = require("../../Models/TagLeaderBoard/Hostel");

@@ -1,0 +1,1 @@
+const FurtherStudy = require("../../Models/TagLeaderBoard/FurtherStudy");

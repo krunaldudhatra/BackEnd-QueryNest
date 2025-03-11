@@ -1,0 +1,1 @@
+const SoftSkills = require("../../Models/TagLeaderBoard/SoftSkills");
