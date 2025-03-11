@@ -52,6 +52,7 @@ mongoose
     startCleanupJob();
   })
   .catch((err) => console.log("Failed to connect to MongoDB:", err));
+  
 
 // Start server
 server.listen(PORT, () => {

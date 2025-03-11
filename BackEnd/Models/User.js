@@ -5,7 +5,7 @@ const UserSchema = new mongoose.Schema(
     name: { type: String, required: true },
     username: { type: String, required: true, unique: true },
     clgemail: { type: String, required: true, unique: true },
-    backupemail:{type:String,unique:true},
+    backupemail:{type:String,unique:true,sparse:true},
     password: { type: String, required: true },
 
     otp: { type: String },
