@@ -16,6 +16,7 @@ const {
   resetPassword,
 } = require("../Controllers/UserController");
 
+
 router.post("/register", registerUser);
 router.post("/verify-otp", verifyOTP);
 router.post("/resend-otp", resendOTP);
