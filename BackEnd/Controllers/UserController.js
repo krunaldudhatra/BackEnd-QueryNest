@@ -268,7 +268,7 @@ exports.verifyPasscode = async (req, res) => {
     }
 
     // Check if passcode matches
-    if (user.resetPasscode !== passcode) {
+    if (user.resetPasscode != passcode) {
       return res.status(400).json({ error: "Incorrect passcode!" });
     }
     return res.status(200).json({ message: "Passcode verified successfully!" });

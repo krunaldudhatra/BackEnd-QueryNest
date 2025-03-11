@@ -13,7 +13,7 @@ const {
   deleteUserProfile,
   loginUser,
   requestPasswordReset,
-  resetPassword
+  resetPassword,
 } = require("../Controllers/UserController");
 
 router.post("/register", registerUser);
@@ -27,8 +27,8 @@ router.post("/verifyPasscode", verifyPasscode);
 router.post("/reset-password", resetPassword);
 
 router.get("/", getAllUser);
-router.get("/:id", getUserProfileById);
- 
+router.get("/", getUserProfileById);
+
 router.put("/:id", updateUserProfile);
 router.delete("/:id", deleteUserProfile);
 
