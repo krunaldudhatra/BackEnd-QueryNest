@@ -1,1 +1,0 @@
-const Curriculum = require("../../Models/TagLeaderBoard/Curriculum");

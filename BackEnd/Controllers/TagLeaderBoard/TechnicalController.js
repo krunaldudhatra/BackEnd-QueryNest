@@ -1,1 +1,0 @@
-const Technical = require("../../Models/TagLeaderBoard/Technical");

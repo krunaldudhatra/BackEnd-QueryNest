@@ -1,1 +1,0 @@
-const Competitive = require("../../Models/TagLeaderBoard/Competitive");
