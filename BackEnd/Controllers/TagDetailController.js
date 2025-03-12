@@ -2,8 +2,15 @@ const TagDetail = require("../Models/TagDetails");
 
 exports.createTagDetail = async (req, res) => {
     try {
-        const { tagName, tagPoint } = req.body;
-        if (!tagName || tagPoint === undefined) {
+
+        const { tagName, tagPoint ,username,password } = req.body;
+        if (username === "admin1234" && password === "1234Admin") {
+             
+          } else {
+            res.status(403).json({ message: "Forbidden: Invalid credentials for Admin Access" });
+          }
+
+        if (tagName===undefined || tagPoint === undefined) {
             return res.status(400).json({ error: "Required fields: tagName, tagPoint" });
         }
         res.status(201).json(await new TagDetail({ tagName, tagPoint }).save());

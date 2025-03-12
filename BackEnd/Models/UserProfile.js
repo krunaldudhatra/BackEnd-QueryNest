@@ -10,6 +10,7 @@ const UserProfileSchema = new mongoose.Schema(
     },
     clgemail:{type:String,unique:true},
     backupemail: { type: String, unique: true },
+    username: { type: String, required: true, unique: true },
     bio: { type: String, required: true },
     tags: {
       type: [{ type: String }],

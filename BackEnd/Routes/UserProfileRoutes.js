@@ -7,12 +7,16 @@ const {
   getUserProfileById,
   updateUserProfile,
   deleteUserProfile,
+  getUserProfileByusername
 } = require("../Controllers/UserProfileController");
 
+const {authenticateUser}=require("../Controllers/AuthController")
+
 router.get("/", getAllUserProfile);
-router.get("/:id", getUserProfileById);
-router.post("/createUserProfile", createUserProfile);
-router.put("/updateUserProfile", updateUserProfile);
+router.get("/:username",  getUserProfileByusername);
+router.get("/", authenticateUser , getUserProfileById);
+router.post("/createUserProfile",authenticateUser, createUserProfile);
+router.put("/updateUserProfile",authenticateUser, updateUserProfile);
 router.delete("/:id", deleteUserProfile);
 
 module.exports = router;
