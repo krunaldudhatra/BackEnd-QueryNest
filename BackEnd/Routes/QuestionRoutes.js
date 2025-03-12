@@ -1,4 +1,5 @@
 const express = require("express");
+const { authenticateUser } = require("../Controllers/AuthController");
 const router = express.Router();
 const {createQuestion,
     getAllQuestions,
@@ -6,7 +7,7 @@ const {createQuestion,
     likeQuestion,
     deleteQuestion,} = require("../Controllers/QuestionController");
 
-router.post("/create",createQuestion);
+router.post("/create",authenticateUser,createQuestion);
 
 
 
