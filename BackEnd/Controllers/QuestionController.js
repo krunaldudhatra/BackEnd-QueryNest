@@ -1,80 +1,94 @@
 const Question = require("../Models/Question");
+const TagDetails = require("../Models/TagDetails");
+const User = require("../Models/User");
 
+// Create a new question
 exports.createQuestion = async (req, res) => {
-    try {
-        const { userId, TagId, question } = req.body;
+  try {
+    const { userId, question, tagName } = req.body;
 
-        if (!userId || !TagId || !question) {
-            return res.status(400).json({ error: "Required fields: userId, TagId, question" });
-        }
+    const tag = await TagDetails.findOne({ name: tagName });
+    if (!tag) return res.status(404).json({ message: "Tag not found" });
 
-        const newQuestion = new Question({ userId, TagId, question });
-        await newQuestion.save();
+    const newQuestion = new Question({
+      userId,
+      question,
+      tag: tagName,
+    });
 
-        res.status(201).json(newQuestion);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    await newQuestion.save();
+    res.status(201).json({ message: "Question created successfully", newQuestion });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
-// Get all questions
+// Get all questions with user and tag details
 exports.getAllQuestions = async (req, res) => {
-    try {
-        res.json(await Question.find().populate("userId answers"));
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+  try {
+    const questions = await Question.find()
+      .populate("userId", "username imageUrl")
+      .populate("tag", "name")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(questions);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
-// Get question by ID
-exports.getQuestionById = async (req, res) => {
-    try {
-        const question = await Question.findById(req.params.id).populate("userId answers");
-        question ? res.json(question) : res.status(404).json({ error: "Question not found" });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+// Get questions by tag name
+exports.getQuestionsByTag = async (req, res) => {
+  try {
+    const { tagName } = req.params;
+
+    const tag = await TagDetails.findOne({ name: tagName });
+    if (!tag) return res.status(404).json({ message: "Tag not found" });
+
+    const questions = await Question.find({ tag: tag._id })
+      .populate("userId", "username imageUrl")
+      .populate("tag", "name");
+
+    res.status(200).json(questions);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
- 
-// Get all questions for a specific user
-exports.getQuestionsByUserId = async (req, res) => {
-    try {
-        const { userId } = req.params;
+// Like a question
+exports.likeQuestion = async (req, res) => {
+  try {
+    const { questionId, userId } = req.body;
 
-        // Validate userId format
-        if (!mongoose.Types.ObjectId.isValid(userId)) {
-            return res.status(400).json({ error: "Invalid userId format." });
-        }
+    const question = await Question.findById(questionId);
+    if (!question) return res.status(404).json({ message: "Question not found" });
 
-        // Fetch questions for the given userId
-        const questions = await Question.find({ userId })
-            .populate("userId", "name username email") // Populate user details
-            .populate("TagId", "tagName") // Populate tag details
-            .populate("answers"); // Populate related answers
-
-        res.json(questions);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+    const alreadyLiked = question.likes.includes(userId);
+    if (alreadyLiked) {
+      question.likes = question.likes.filter((id) => id.toString() !== userId);
+    } else {
+      question.likes.push(userId);
     }
+
+    await question.save();
+    res.status(200).json({ message: "Like updated", likes: question.likes.length });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
-
-// Update question
-exports.updateQuestion = async (req, res) => {
-    try {
-        res.json(await Question.findByIdAndUpdate(req.params.id, req.body, { new: true }));
-    } catch (err) {
-        res.status(400).json({ error: err.message });
-    }
-};
-
-// Delete question
+// Delete a question
 exports.deleteQuestion = async (req, res) => {
-    try {
-        await Question.findByIdAndDelete(req.params.id);
-        res.json({ message: "Question deleted successfully" });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+  try {
+    const { questionId } = req.params;
+
+    await Question.findByIdAndDelete(questionId);
+    res.status(200).json({ message: "Question deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
+
+module.exports = exports;
+
+// Let me know if you want me to add more routes or refine anything! 🚀

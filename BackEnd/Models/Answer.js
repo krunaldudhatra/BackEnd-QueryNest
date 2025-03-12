@@ -8,7 +8,7 @@ const AnswerSchema = new mongoose.Schema(
     },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "UserDetails",
+      ref: "User",
       required: true,
     },
     questionId: {
@@ -21,7 +21,7 @@ const AnswerSchema = new mongoose.Schema(
     ansDuration: { type: Number }, // Duration in seconds
     likes: [{
       type: mongoose.Schema.Types.ObjectId,
-      ref: "UserDetails",
+      ref: "User",
     }],
     rating: { type: Number, default: 0 },
     point: { type: Number, default: 0 },

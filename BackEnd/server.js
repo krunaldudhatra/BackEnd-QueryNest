@@ -2,7 +2,6 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const server = express();
-const startCleanupJob = require("./cleanup"); // Import the cleanup function
 require("dotenv").config();
 server.use(express.json());
 const PORT = process.env.PORT || 3000;

@@ -113,7 +113,7 @@ exports.createUserProfile = async (req, res) => {
     const userProfileData = {
       userid,
       username,
-      clgemail,
+      clgemail:loginemail,
       bio,
       tags,
       LinkedInusername,
@@ -135,8 +135,7 @@ exports.createUserProfile = async (req, res) => {
   }
 };
 
-// Update a user Profile by ID
-// Update a user profile by ID
+ // Update a user profile by ID
 exports.updateUserProfile = async (req, res) => {
   try {
     const userid = req.user.userId; // Extract user ID from the authenticated request
