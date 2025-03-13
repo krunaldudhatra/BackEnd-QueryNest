@@ -167,7 +167,7 @@ exports.createUserProfile = async (req, res) => {
       return res.status(400).json({ error: "You can only have up to 3 tags." ,yourTags:tags,length:tags.length });
     }
 
-    
+
     // **🔹 Fix: Check only if LinkedInUrl or Githubusername are provided**
     if (LinkedInUrl) {
       const existingLinkedIn = await UserProfile.findOne({ LinkedInUrl });
@@ -197,11 +197,14 @@ exports.createUserProfile = async (req, res) => {
       clgemail: loginemail,
       bio,
       tags,
-      LinkedInUrl: LinkedInUrl || null, // **Ensure it's not undefined**
-      Githubusername: Githubusername || null, // **Ensure it's not undefined**
+      LinkedInUrl: LinkedInUrl  , // **Ensure it's not undefined**
+      Githubusername: Githubusername  , // **Ensure it's not undefined**
       Graduation,
       backupemail,
     };
+
+    console.log("LinkedIn:"+LinkedInUrl)
+    console.log("Githubusernnam:"+Githubusername)
 
     const userProfile = new UserProfile(userProfileData);
     await userProfile.save();
@@ -273,7 +276,56 @@ exports.updateUserProfile = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+};exports.updateUserProfile = async (req, res) => {
+  try {
+    const userid = req.user.userId;
+    const loginemail = req.user.loginemail;
+
+    const { name, username, bio, LinkedInUrl, Githubusername, Graduation } = req.body;
+
+    const userProfile = await UserProfile.findOne({ userid });
+    if (!userProfile) {
+      return res.status(404).json({ message: "User profile not found" });
+    }
+
+    const changeableFields = { name, username, bio, LinkedInUrl, Githubusername, Graduation };
+
+    // Track fields that actually changed
+    let hasChanges = false;
+
+    Object.keys(changeableFields).forEach((key) => {
+      const newValue = changeableFields[key];
+      const currentValue = userProfile[key];
+
+      // Skip undefined fields or fields with the same value
+      if (newValue !== undefined && newValue != currentValue) {
+        userProfile[key] = newValue;
+        hasChanges = true;
+      }
+    });
+
+    if (!hasChanges) {
+      return res.status(400).json({ message: "No changes detected in the profile" });
+    }
+
+    // If the username is updated, also update in the User schema
+    if (username && username !== req.user.username) {
+      await User.findByIdAndUpdate(userid, { username });
+    }
+
+    await userProfile.save();
+
+    const { _id, ...profileWithoutId } = userProfile.toObject();
+
+    res.json({
+      message: "Profile updated successfully",
+      userProfile: profileWithoutId,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
+
 
 // Delete a user Profile by ID
 exports.deleteUserProfile = async (req, res) => {

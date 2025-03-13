@@ -140,7 +140,7 @@ const UserProfileSchema = new mongoose.Schema(
         message: "You can only have up to 3 tags.",
       },
     },
-    LinkedInUrl: { type: String, required: true, unique: true },
+    LinkedInUrl: { type: String, unique: true, sparse: true },
     Githubusername: { type: String, required: true, unique: true },
     noOfQuestions: { type: Number, default: 0 },
     Graduation: { type: String },
