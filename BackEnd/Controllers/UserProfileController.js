@@ -164,7 +164,7 @@ exports.createUserProfile = async (req, res) => {
     const username = user.username;
 
     if (tags && tags.length > 3) {
-      return res.status(400).json({ error: "You can only have up to 3 tags." });
+      return res.status(400).json({ error: "You can only have up to 3 tags." ,yourTags:tags,length:tags.length });
     }
 
     // **🔹 Fix: Check only if LinkedInUrl or Githubusername are provided**

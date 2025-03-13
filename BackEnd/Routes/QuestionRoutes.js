@@ -3,12 +3,23 @@ const { authenticateUser } = require("../Controllers/AuthController");
 const router = express.Router();
 const {
   createQuestion,
-  getAllQuestions,
-  getQuestionsByTag,
-  likeQuestion,
-  deleteQuestion,
-} = require("../Controllers/QuestionController");
+  likeTheQuestionByUser,
+  removeLikeFromQuestion,
 
-router.post("/create", authenticateUser, createQuestion);
+  getQuestionsByTag,
+  getAllQuestions,
+  getAllQuestionsByUsername
+} = require("../Controllers/QuestionController");
+ 
+router.post("/create", authenticateUser, createQuestion);  //create question
+router.post("/likeQuestion",authenticateUser,likeTheQuestionByUser)  //give like
+router.post("/removelike",authenticateUser,removeLikeFromQuestion)  //remove like 
+router.get("/tagQuestion",getQuestionsByTag); //to get all specific tag question
+router.get("/userQuestion/:username",authenticateUser, getAllQuestionsByUsername); // to view any of user's asked by username
+router.get("/allQuestions",getAllQuestions)  //retrive all questions
+
+router.get("/")
+
+
 
 module.exports = router;
