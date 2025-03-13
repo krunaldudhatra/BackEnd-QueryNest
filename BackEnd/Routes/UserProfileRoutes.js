@@ -12,9 +12,9 @@ const {
 
 const {authenticateUser}=require("../Controllers/AuthController")
 
-router.get("/", getAllUserProfile);
+// router.get("/", getAllUserProfile);
 router.get("/:username",  getUserProfileByusername);
-router.get("/", authenticateUser , getUserProfileById);
+router.get("/me", authenticateUser , getUserProfileById);
 router.post("/createUserProfile",authenticateUser, createUserProfile);
 router.put("/updateUserProfile",authenticateUser, updateUserProfile);
 router.delete("/:id", deleteUserProfile);
