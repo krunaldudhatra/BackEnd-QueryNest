@@ -65,7 +65,16 @@ exports.getAllTagDetails = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+exports.getProfileTags = async (req, res) => {
+  try {
+    const tags = await TagDetail.find({ tagName: { $ne: "General Query" } }, "tagName"); 
+    const tagNames = tags.map((tag) => tag.tagName); // Extract tagName into an array
 
+    res.json(tagNames);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 exports.getTagDetailById = async (req, res) => {
   try {

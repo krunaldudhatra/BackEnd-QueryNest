@@ -5,7 +5,7 @@ const TagSchema = new mongoose.Schema(
     tagId: {
       type: mongoose.Schema.Types.ObjectId,
     },
-    name: {
+    tagName: {
       type: String,
       required: true,
       unique: true,
