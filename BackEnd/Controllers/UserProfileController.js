@@ -21,8 +21,7 @@ exports.getUserProfileByusername = async (req, res) => {
     // Find the user by username
     // const userProfile = await UserProfile.findOne({ username });
 
-    // Find the user profile by user ID and select only the required fields
-    // Find the user profile by username and select only the required fields
+     // Find the user profile by username and select only the required fields
     const userProfile = await UserProfile.findOne({ username })
       .select(
         "bio username tags LinkedInUrl Githubusername noOfQuestions Graduation noOfAnswers avgRating totalPoints questionIds answerIds achievements followers following noOfFollowers noOfFollowing imageUrl"
@@ -65,7 +64,7 @@ exports.getUserProfileById = async (req, res) => {
 // create profile for registered user
 exports.createUserProfile = async (req, res) => {
   const userid = req.user.userId;
-  const loginemail = req.user.email;
+  const loginemail = req.user.loginemail;
   try {
     const {
       name,
@@ -145,7 +144,7 @@ exports.createUserProfile = async (req, res) => {
 exports.updateUserProfile = async (req, res) => {
   try {
     const userid = req.user.userId; // Extract user ID from the authenticated request
-    const loginemail = req.user.email; // Extract email from the authenticated request
+    const loginemail = req.user.loginemail; // Extract email from the authenticated request
 
     const {name, username, bio, LinkedInUrl, Githubusername, Graduation } =
       req.body;
@@ -206,7 +205,7 @@ exports.updateUserProfile = async (req, res) => {
 exports.deleteUserProfile = async (req, res) => {
   try {
     const userid = req.user.userId;
-    const loginemail = req.user.email;
+    const loginemail = req.user.loginemail;
     const user = await UserProfile.findByIdAndDelete(userid);
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json({ message: "User deleted successfully" });

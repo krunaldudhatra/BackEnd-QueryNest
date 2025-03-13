@@ -2,7 +2,9 @@ const Question = require("../Models/Question");
 const TagDetails = require("../Models/TagDetails");
 const mongoose = require("mongoose");
 const User = require("../Models/User");
-const UserProfile=require("../Models/UserProfile")
+const UserProfile=require("../Models/UserProfile");
+require("dotenv").config();
+const QUESTION_ASK_POINT=process.env.QUESTION_ASK_POINT
 
 // Create a new question
 exports.createQuestion = async (req, res) => {
@@ -44,7 +46,7 @@ exports.createQuestion = async (req, res) => {
     // Update the user profile
     userProfile.questionIds.push(newQuestion._id);
     userProfile.noOfQuestions = userProfile.questionIds.length;
-
+    userProfile.totalPoints+=parseInt(QUESTION_ASK_POINT)
     await userProfile.save({ session });
 
     // Commit the transaction
