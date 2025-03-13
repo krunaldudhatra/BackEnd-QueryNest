@@ -62,6 +62,84 @@ exports.getUserProfileById = async (req, res) => {
 };
 
 // create profile for registered user
+// exports.createUserProfile = async (req, res) => {
+//   const userid = req.user.userId;
+//   const loginemail = req.user.loginemail;
+//   try {
+//     const {
+//       name,
+//       bio,
+//       tags,
+//       LinkedInUrl,
+//       Githubusername,
+//       Graduation,
+//       backupemail,
+//     } = req.body;
+
+//     // Validate required fields
+//     if (!userid) return res.status(400).json({ error: "User ID is required." });
+//     if (!isValidObjectId(userid))
+//       return res.status(400).json({ error: "Invalid user ID format." });
+
+//     // Validate if the user exists
+//     const user = await User.findOne({ _id: userid });
+//     if (!user) return res.status(404).json({ error: "User not found." });
+
+//     const username = user.username;
+
+//     // Validate `tags` length
+//     if (tags && tags.length > 3) {
+//       return res.status(400).json({ error: "You can only have up to 3 tags." });
+//     }
+
+//     // Check if LinkedIn and GitHub usernames are unique
+//     const existingProfile = await UserProfile.findOne({
+//       $or: [{ LinkedInUrl }, { Githubusername }],
+//     });
+
+//     if (existingProfile) {
+//       return res
+//         .status(400)
+//         .json({ error: "LinkedIn or GitHub username is already in use." });
+//     }
+
+//     // Check if backup email is already taken
+//     if (backupemail) {
+//       const existingBackupEmail = await UserProfile.findOne({ backupemail });
+//       if (existingBackupEmail) {
+//         return res
+//           .status(400)
+//           .json({ error: "Backup email is already in use." });
+//       }
+//     }
+
+//     // Create user profile
+//     const userProfileData = {
+//       userid,
+//       name,
+//       username,
+//       clgemail:loginemail,
+//       bio,
+//       tags,
+//       LinkedInUrl,
+//       Githubusername,
+//       Graduation,
+//       backupemail,
+//     };
+
+//     const userProfile = new UserProfile(userProfileData);
+//     await userProfile.save();
+//     user.isProfileCompleted=true;
+//      await user.save();  
+
+//     res
+//       .status(201)
+//       .json({ message: "User profile created successfully!", userProfile });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// };
+
 exports.createUserProfile = async (req, res) => {
   const userid = req.user.userId;
   const loginemail = req.user.loginemail;
@@ -76,69 +154,66 @@ exports.createUserProfile = async (req, res) => {
       backupemail,
     } = req.body;
 
-    // Validate required fields
     if (!userid) return res.status(400).json({ error: "User ID is required." });
     if (!isValidObjectId(userid))
       return res.status(400).json({ error: "Invalid user ID format." });
 
-    // Validate if the user exists
     const user = await User.findOne({ _id: userid });
     if (!user) return res.status(404).json({ error: "User not found." });
 
     const username = user.username;
 
-    // Validate `tags` length
     if (tags && tags.length > 3) {
       return res.status(400).json({ error: "You can only have up to 3 tags." });
     }
 
-    // Check if LinkedIn and GitHub usernames are unique
-    const existingProfile = await UserProfile.findOne({
-      $or: [{ LinkedInUrl }, { Githubusername }],
-    });
-
-    if (existingProfile) {
-      return res
-        .status(400)
-        .json({ error: "LinkedIn or GitHub username is already in use." });
-    }
-
-    // Check if backup email is already taken
-    if (backupemail) {
-      const existingBackupEmail = await UserProfile.findOne({ backupemail });
-      if (existingBackupEmail) {
-        return res
-          .status(400)
-          .json({ error: "Backup email is already in use." });
+    // **🔹 Fix: Check only if LinkedInUrl or Githubusername are provided**
+    if (LinkedInUrl) {
+      const existingLinkedIn = await UserProfile.findOne({ LinkedInUrl });
+      if (existingLinkedIn) {
+        return res.status(400).json({ error: "LinkedIn URL already in use." });
       }
     }
 
-    // Create user profile
+    if (Githubusername) {
+      const existingGithub = await UserProfile.findOne({ Githubusername });
+      if (existingGithub) {
+        return res.status(400).json({ error: "GitHub username already in use." });
+      }
+    }
+
+    if (backupemail) {
+      const existingBackupEmail = await UserProfile.findOne({ backupemail });
+      if (existingBackupEmail) {
+        return res.status(400).json({ error: "Backup email already in use." });
+      }
+    }
+
     const userProfileData = {
       userid,
       name,
       username,
-      clgemail:loginemail,
+      clgemail: loginemail,
       bio,
       tags,
-      LinkedInUrl,
-      Githubusername,
+      LinkedInUrl: LinkedInUrl || null, // **Ensure it's not undefined**
+      Githubusername: Githubusername || null, // **Ensure it's not undefined**
       Graduation,
       backupemail,
     };
 
     const userProfile = new UserProfile(userProfileData);
     await userProfile.save();
-    user.isProfileCompleted=true;
-     await user.save();  
+    user.isProfileCompleted = true;
+    await user.save();
 
-    res
-      .status(201)
-      .json({ message: "User profile created successfully!", userProfile });
+    res.status(201).json({ message: "User profile created successfully!", userProfile });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
+
 
  // Update a user profile by ID
 exports.updateUserProfile = async (req, res) => {
