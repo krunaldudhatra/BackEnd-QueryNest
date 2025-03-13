@@ -18,7 +18,7 @@ router.post("/removelike",authenticateUser,removeLikeFromQuestion)  //remove lik
 router.get("/tagQuestion",getQuestionsByTag); //to get all specific tag question
 router.get("/userQuestion/:username",authenticateUser, getAllQuestionsByUsername); // to view any of user's asked by username
 router.get("/allQuestions",getAllQuestions)  //retrive all questions
-router.get("/question",getQuestionsBySenderAndTagMatch) 
+router.get("/getquestion",authenticateUser,getQuestionsBySenderAndTagMatch) 
 
 router.get("/")
 
