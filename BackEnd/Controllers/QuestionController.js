@@ -275,9 +275,10 @@ exports.removeLikeFromQuestion = async (req, res) => {
 
 // Get all questions asked by the logged-in user (sender)
 // Get questions sent by the logged-in user to users with matching tags
+
 exports.getQuestionsBySenderAndTagMatch = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user?.userId;
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ message: "Invalid user ID format" });
@@ -285,29 +286,38 @@ exports.getQuestionsBySenderAndTagMatch = async (req, res) => {
 
     const { page = 1, limit = 10, sort = "-createdAt" } = req.query;
 
-    // Find the sender's tags
-    const senderProfile = await UserProfile.findOne({ userid: userId }).populate('tags');
-    if (!senderProfile || !senderProfile.tags.length) {
+    // Find the sender's profile and their tags
+    const senderProfile = await UserProfile.findOne({ userid: userId });
+    if (!senderProfile || !senderProfile.tags || senderProfile.tags.length === 0) {
       return res.status(404).json({ message: "Sender profile or tags not found" });
     }
 
-    const senderTagIds = senderProfile.tags.map(tag => tag.id);
+    const senderTagNames = senderProfile.tags;
+    console.log("Sender Tags:", senderTagNames);
 
-    // Find questions where the tag matches the sender's tags
+    // Find tag IDs for the sender's tags
+    const tagDetails = await TagDetails.find({ tagName: { $in: senderTagNames } });
+    if (!tagDetails || tagDetails.length === 0) {
+      return res.status(404).json({ message: "Matching tags not found in TagDetail collection" });
+    }
+
+    const senderTagIds = tagDetails.map(tag => tag._id);
+    console.log("Sender Tag IDs:", senderTagIds);
+
+    // Find questions where the tag matches any of the sender's tag IDs
     const questions = await Question.find({ 
-      userId, 
       tag: { $in: senderTagIds }
     })
-      .populate("userId", "username imageUrl") // Populate sender details
-      .populate("tag", "tagName")              // Populate tag details
+      .populate("userId", "username imageUrl")
+      .populate("tag", "tagName")
       .sort(sort)
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
 
     const totalQuestions = await Question.countDocuments({ 
-      userId, 
       tag: { $in: senderTagIds }
     });
+    console.log("Total matched questions:", totalQuestions);
 
     res.status(200).json({
       message: "Questions fetched successfully with matching tags",
