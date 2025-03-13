@@ -25,7 +25,7 @@ exports.getUserProfileByusername = async (req, res) => {
     // Find the user profile by username and select only the required fields
     const userProfile = await UserProfile.findOne({ username })
       .select(
-        "bio username tags LinkedInusername Githubusername noOfQuestions Graduation noOfAnswers avgRating totalPoints questionIds answerIds achievements followers following noOfFollowers noOfFollowing imageUrl"
+        "bio username tags LinkedInUrl Githubusername noOfQuestions Graduation noOfAnswers avgRating totalPoints questionIds answerIds achievements followers following noOfFollowers noOfFollowing imageUrl"
       )
       .lean(); // Use lean() for a plain JavaScript object (better performance)
 
@@ -68,9 +68,10 @@ exports.createUserProfile = async (req, res) => {
   const loginemail = req.user.email;
   try {
     const {
+      name,
       bio,
       tags,
-      LinkedInusername,
+      LinkedInUrl,
       Githubusername,
       Graduation,
       backupemail,
@@ -94,7 +95,7 @@ exports.createUserProfile = async (req, res) => {
 
     // Check if LinkedIn and GitHub usernames are unique
     const existingProfile = await UserProfile.findOne({
-      $or: [{ LinkedInusername }, { Githubusername }],
+      $or: [{ LinkedInUrl }, { Githubusername }],
     });
 
     if (existingProfile) {
@@ -116,11 +117,12 @@ exports.createUserProfile = async (req, res) => {
     // Create user profile
     const userProfileData = {
       userid,
+      name,
       username,
       clgemail:loginemail,
       bio,
       tags,
-      LinkedInusername,
+      LinkedInUrl,
       Githubusername,
       Graduation,
       backupemail,
@@ -145,14 +147,15 @@ exports.updateUserProfile = async (req, res) => {
     const userid = req.user.userId; // Extract user ID from the authenticated request
     const loginemail = req.user.email; // Extract email from the authenticated request
 
-    const { username, bio, LinkedInusername, Githubusername, Graduation } =
+    const {name, username, bio, LinkedInUrl, Githubusername, Graduation } =
       req.body;
 
     // Define the fields that can be updated
     const changeableFields = {
+      name,
       username,
       bio,
-      LinkedInusername,
+      LinkedInUrl,
       Githubusername,
       Graduation,
     };

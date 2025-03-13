@@ -10,6 +10,7 @@ const UserProfileSchema = new mongoose.Schema(
     },
     clgemail:{type:String,unique:true},
     backupemail: { type: String, unique: true },
+    name: { type: String, required: true },
     username: { type: String, required: true, unique: true },
     bio: { type: String, required: true },
     tags: {
@@ -21,7 +22,7 @@ const UserProfileSchema = new mongoose.Schema(
         message: "You can only have up to 3 tags.",
       },
     },
-    LinkedInusername: { type: String, required: true, unique: true },
+    LinkedInUrl: { type: String, required: true, unique: true },
     Githubusername: { type: String, required: true, unique: true },
     noOfQuestions: { type: Number, default: 0 },
     Graduation: { type: String },
@@ -82,6 +83,7 @@ function generateImageUrl(name) {
 UserProfileSchema.pre("save", async function (next) {
   this.noOfFollowers = this.followers.length;
   this.noOfFollowing = this.following.length;
+  
 
   if (this.isNew || this.isModified("userid")) {
     const user = await mongoose.model("User").findById(this.userid);
@@ -92,5 +94,19 @@ UserProfileSchema.pre("save", async function (next) {
 
   next();
 });
+
+UserProfileSchema.post("save", async function (doc, next) {
+  try {
+    // Update the User schema's name when the profile is saved
+    await mongoose.model("User").findByIdAndUpdate(doc.userid, {
+      name: doc.name,
+    });
+
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
 
 module.exports = mongoose.model("UserProfile", UserProfileSchema);

@@ -1,28 +1,66 @@
 const Question = require("../Models/Question");
 const TagDetails = require("../Models/TagDetails");
+const mongoose = require("mongoose");
 const User = require("../Models/User");
+const UserProfile=require("../Models/UserProfile")
 
 // Create a new question
 exports.createQuestion = async (req, res) => {
+  const session = await mongoose.startSession(); // Start a session for the transaction
+  session.startTransaction();
+
   try {
     const { question, tagName } = req.body;
-
     const userId = req.user.userId;
-    const email=req.user.email;
+    const email = req.user.email;
+
+    // Find the tag by name
+    const tag = await TagDetails.findOne({ tagName }).session(session);
+    if (!tag) {
+      throw new Error("Tag not found");
+    }
+
+    console.log(tagName);
+    console.log(tag);
 
     // Create the question
     const newQuestion = new Question({
       userId,
       question,
-      tag: tag._id,
+      tag: tag.id,
     });
 
-    await newQuestion.save();
+    await newQuestion.save({ session });
+
+    // Find the user's profile
+    const userProfile = await UserProfile.findOne({ userid: userId }).session(session);
+
+    if (!userProfile) {
+      // If no profile found, delete the question and throw an error
+      await Question.findByIdAndDelete(newQuestion._id).session(session);
+      throw new Error("User profile not found");
+    }
+
+    // Update the user profile
+    userProfile.questionIds.push(newQuestion._id);
+    userProfile.noOfQuestions = userProfile.questionIds.length;
+
+    await userProfile.save({ session });
+
+    // Commit the transaction
+    await session.commitTransaction();
+    session.endSession();
+
     res.status(201).json({ message: "Question created successfully", newQuestion });
   } catch (error) {
+    // Rollback the transaction and clean up if anything fails
+    await session.abortTransaction();
+    session.endSession();
+
     res.status(500).json({ error: error.message });
   }
 };
+
 
 // Get all questions with user and tag details
 exports.getAllQuestions = async (req, res) => {

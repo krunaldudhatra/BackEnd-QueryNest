@@ -2,7 +2,6 @@ const mongoose = require("mongoose");
 
 const QuestionSchema = new mongoose.Schema(
   {
-    
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -18,27 +17,35 @@ const QuestionSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.ObjectId,
         ref: "Answer",
       },
-     { default:[]}
     ],
     tag: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "TagDetails",
+      ref: "TagDetail", // Match the correct model name
       required: true,
     },
-       likes: [
+    likes: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
       },
-      {default:[]}
     ],
+    noOfLikes: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );
 
 // Virtual for number of likes
-QuestionSchema.virtual("noOfLikes").get(function () {
+QuestionSchema.virtual("likeCount").get(function () {
   return this.likes.length;
+});
+
+// Middleware to automatically update noOfLikes
+QuestionSchema.pre("save", function (next) {
+  this.noOfLikes = this.likes.length;
+  next();
 });
 
 // Middleware to populate username, imageUrl, and profileId
