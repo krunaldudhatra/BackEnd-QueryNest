@@ -167,6 +167,7 @@ exports.createUserProfile = async (req, res) => {
       return res.status(400).json({ error: "You can only have up to 3 tags." ,yourTags:tags,length:tags.length });
     }
 
+    
     // **🔹 Fix: Check only if LinkedInUrl or Githubusername are provided**
     if (LinkedInUrl) {
       const existingLinkedIn = await UserProfile.findOne({ LinkedInUrl });
