@@ -1,33 +1,93 @@
 const Answer = require("../Models/Answer.js");
+const UserProfile = require("../Models/UserProfile.js");
+const Question = require("../Models/Question.js");
+const mongoose = require("mongoose");
+require("dotenv").config();
 
+const ANSWER_POST_POINT = process.env.ANSWER_POST_POINT;
+
+// Create an answer with a transaction
 exports.createAnswer = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
     try {
-        const { userId, questionId, content } = req.body;
+        const { questionId, content } = req.body;
+        const userId = req.user.userId;
 
         if (!userId || !questionId || !content) {
             return res.status(400).json({ error: "All required fields (userId, questionId, content) must be provided." });
         }
 
+        if (!mongoose.Types.ObjectId.isValid(questionId)) {
+            return res.status(400).json({ error: "Invalid question ID format." });
+        }
+
+        const question = await Question.findById(questionId).session(session);
+        if (!question) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({ error: "Question not found." });
+        }
+
         const answer = new Answer({ userId, questionId, content });
-        const savedAnswer = await answer.save();
-        res.status(201).json(savedAnswer);
+        const savedAnswer = await answer.save({ session });
+
+        const userProfile = await UserProfile.findOne({ userid: userId }).session(session);
+        if (!userProfile) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({ error: "User profile not found." });
+        }
+
+        userProfile.answerIds.push(savedAnswer._id);
+        userProfile.noOfAnswers = userProfile.answerIds.length;
+        userProfile.totalPoints += parseInt(ANSWER_POST_POINT);
+        await userProfile.save({ session });
+
+        await session.commitTransaction();
+        session.endSession();
+
+        res.status(201).json({ message: "Answer created successfully", savedAnswer });
     } catch (err) {
+        await session.abortTransaction();
+        session.endSession();
         res.status(500).json({ error: err.message });
     }
 };
 
+// Fetch all answers with pagination and sorting
 exports.getAllAnswers = async (req, res) => {
     try {
-        const answers = await Answer.find().populate("userId questionId");
-        res.json(answers);
+        const { page = 1, limit = 10, sort = "-createdAt" } = req.query;
+        
+        const answers = await Answer.find()
+            .populate("userId", "username")
+            .populate("questionId")
+            .sort(sort)
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit));
+
+        const totalAnswers = await Answer.countDocuments();
+
+        res.json({
+            message: "Answers fetched successfully",
+            answers,
+            totalAnswers,
+            currentPage: parseInt(page),
+            totalPages: Math.ceil(totalAnswers / limit),
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 };
 
+// Fetch a single answer by ID
 exports.getAnswerById = async (req, res) => {
     try {
-        const answer = await Answer.findById(req.params.id).populate("userId questionId");
+        const answer = await Answer.findById(req.params.id)
+            .populate("userId questionId");
+
         if (!answer) return res.status(404).json({ error: "Answer not found" });
         res.json(answer);
     } catch (err) {
@@ -35,28 +95,23 @@ exports.getAnswerById = async (req, res) => {
     }
 };
 
-
- 
-
+// Get answers by user ID
 exports.getAnswersByUserId = async (req, res) => {
     try {
-        const { userId } = req.params;
+        const userId = req.user.userId;
 
-        // Validate userId format
         if (!mongoose.Types.ObjectId.isValid(userId)) {
-            return res.status(400).json({ error: "Invalid userId format." });
+            return res.status(400).json({ error: "Invalid user ID format." });
         }
 
-        // Fetch all answers for the given userId
         const answers = await Answer.find({ userId })
-            .populate("questionId", "userId") // Get the userId of the question
+            .populate("questionId", "userId")
             .select("_id userId questionId content");
 
-        // Format response to include question's userId, questionId, and answerId
         const formattedAnswers = answers.map(answer => ({
             answerId: answer._id,
-            questionId: answer.questionId?._id, // Check if populated
-            questionedUserId: answer.questionId?.userId, // Get question's userId
+            questionId: answer.questionId?._id,
+            questionedUserId: answer.questionId?.userId,
             content: answer.content
         }));
 
@@ -66,7 +121,7 @@ exports.getAnswersByUserId = async (req, res) => {
     }
 };
 
-
+// Update an answer
 exports.updateAnswer = async (req, res) => {
     try {
         const updatedAnswer = await Answer.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -76,6 +131,7 @@ exports.updateAnswer = async (req, res) => {
     }
 };
 
+// Delete an answer
 exports.deleteAnswer = async (req, res) => {
     try {
         await Answer.findByIdAndDelete(req.params.id);
@@ -84,3 +140,7 @@ exports.deleteAnswer = async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
+
+module.exports = exports;
+
+// Let me know if you want any adjustments or more features! 🚀
