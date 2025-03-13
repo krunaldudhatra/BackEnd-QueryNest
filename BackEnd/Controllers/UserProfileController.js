@@ -213,8 +213,6 @@ exports.createUserProfile = async (req, res) => {
   }
 };
 
-
-
  // Update a user profile by ID
 exports.updateUserProfile = async (req, res) => {
   try {
