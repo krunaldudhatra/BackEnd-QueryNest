@@ -5,19 +5,10 @@ const User = require("../Models/User");
 // Create a new question
 exports.createQuestion = async (req, res) => {
   try {
-    const { authToken, question, tagName } = req.body;
+    const { question, tagName } = req.body;
 
-    // Verify the auth token
-    const decoded = verifyToken(authToken);
-    if (!decoded || !decoded.userId) {
-      return res.status(401).json({ message: "Unauthorized: Invalid token" });
-    }
-
-    const userId = decoded.userId;
-
-    // Check if the tag exists
-    const tag = await TagDetails.findOne({ tagName });
-    if (!tag) return res.status(404).json({ message: "Tag not found" });
+    const userId = req.user.userId;
+    const email=req.user.email;
 
     // Create the question
     const newQuestion = new Question({
@@ -32,6 +23,7 @@ exports.createQuestion = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 // Get all questions with user and tag details
 exports.getAllQuestions = async (req, res) => {
   try {

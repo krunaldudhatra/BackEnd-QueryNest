@@ -2,27 +2,12 @@ const mongoose = require("mongoose");
 
 const QuestionSchema = new mongoose.Schema(
   {
-    questionId: {
-      type: mongoose.Schema.Types.ObjectId,
-    },
+    
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
       index: true,
-    },
-    username: {
-      type: String,
-      required: true,
-    },
-    imageUrl: {
-      type: String,
-      default:
-        "https://ui-avatars.com/api/?name=User&background=random&color=fff",
-    },
-    profileId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "UserProfile",
     },
     question: {
       type: String,
@@ -33,25 +18,19 @@ const QuestionSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.ObjectId,
         ref: "Answer",
       },
+     { default:[]}
     ],
-    timestamp: {
-      type: Date,
-      default: Date.now,
-    },
     tag: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "TagDetails",
       required: true,
     },
-    questionPoint: {
-      type: Number,
-      default: 0,
-    },
-    likes: [
+       likes: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
       },
+      {default:[]}
     ],
   },
   { timestamps: true }

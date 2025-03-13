@@ -377,18 +377,18 @@ exports.getAllUser = async (req, res) => {
 };
 
 // Get a user profile by ID
-exports.getUserProfileById = async (req, res) => {
+exports.getUserById = async (req, res) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ error: "Invalid profile ID format." });
+    const userid = req.user.userId;
+    const clgemail = req.user.email;
+    if (!mongoose.Types.ObjectId.isValid(userid)) {
+      return res.status(400).json({ error: "Invalid user ID format." });
     }
 
-    const profile = await UserProfile.findById(req.params.id).populate(
-      "userId tags.tag questions answers"
-    );
-    if (!profile) return res.status(404).json({ message: "Profile not found" });
+    const user = await User.findById(userid)
+    if (!user) return res.status(404).json({ message: "Profile not found" });
 
-    res.json(profile);
+    res.json(user);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

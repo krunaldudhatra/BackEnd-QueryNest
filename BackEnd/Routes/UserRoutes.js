@@ -14,6 +14,8 @@ const {
   loginUser,
   requestPasswordReset,
   resetPassword,
+
+  getUserById
 } = require("../Controllers/UserController");
 
 const {authenticateUser}=require("../Controllers/AuthController")
@@ -32,7 +34,7 @@ router.post("/reset-password", resetPassword);
 
 
 router.get("/", getAllUser);
-router.get("/", getUserProfileById);
+router.get("/me",authenticateUser, getUserById);
 router.put("/:id", updateUserProfile);
 router.delete("/:id", deleteUserProfile);
 
