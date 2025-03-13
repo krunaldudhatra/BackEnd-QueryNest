@@ -57,11 +57,15 @@ exports.createTagDetail = async (req, res) => {
 
 exports.getAllTagDetails = async (req, res) => {
   try {
-    res.json(await TagDetail.find());
+    const tags = await TagDetail.find({}, "tagName"); // Only fetch tagName field
+    const tagNames = tags.map((tag) => tag.tagName); // Extract tagName into an array
+
+    res.json(tagNames);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 exports.getTagDetailById = async (req, res) => {
   try {
