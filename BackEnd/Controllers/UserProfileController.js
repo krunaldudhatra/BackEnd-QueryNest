@@ -45,21 +45,28 @@ exports.getUserProfileByusername = async (req, res) => {
 
 // Get a single user Profile by ID
 exports.getUserProfileById = async (req, res) => {
-  console.log("hello")
-
   try {
-    console.log("hello")
-    const userid = new mongoose.Types.ObjectId(req.user.userId)
+    const userid = req.user.userId;
     const clgemail = req.user.loginemail;
-    const userprofile = await UserProfile.findOne({userid:userid});
-     console.log(userid)
-     console.log(clgemail)
-    if (!userprofile) return res.status(404).json({ message: "UserProfile not found" });
+
+    if (!mongoose.Types.ObjectId.isValid(userid)) {
+      return res.status(400).json({ error: "Invalid user ID format." });
+    }
+
+    const userprofile = await UserProfile.findOne({ userid: userid });
+    
+    if (!userprofile) {
+      return res.status(404).json({ message: "UserProfile not found" });
+    }
+
     res.json(userprofile);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
+// Let me know if you’d like me to tweak anything! ✌️
+
 
 // create profile for registered user
 // exports.createUserProfile = async (req, res) => {
@@ -276,56 +283,7 @@ exports.updateUserProfile = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-};exports.updateUserProfile = async (req, res) => {
-  try {
-    const userid = req.user.userId;
-    const loginemail = req.user.loginemail;
-
-    const { name, username, bio, LinkedInUrl, Githubusername, Graduation } = req.body;
-
-    const userProfile = await UserProfile.findOne({ userid });
-    if (!userProfile) {
-      return res.status(404).json({ message: "User profile not found" });
-    }
-
-    const changeableFields = { name, username, bio, LinkedInUrl, Githubusername, Graduation };
-
-    // Track fields that actually changed
-    let hasChanges = false;
-
-    Object.keys(changeableFields).forEach((key) => {
-      const newValue = changeableFields[key];
-      const currentValue = userProfile[key];
-
-      // Skip undefined fields or fields with the same value
-      if (newValue !== undefined && newValue != currentValue) {
-        userProfile[key] = newValue;
-        hasChanges = true;
-      }
-    });
-
-    if (!hasChanges) {
-      return res.status(400).json({ message: "No changes detected in the profile" });
-    }
-
-    // If the username is updated, also update in the User schema
-    if (username && username !== req.user.username) {
-      await User.findByIdAndUpdate(userid, { username });
-    }
-
-    await userProfile.save();
-
-    const { _id, ...profileWithoutId } = userProfile.toObject();
-
-    res.json({
-      message: "Profile updated successfully",
-      userProfile: profileWithoutId,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 };
-
 
 // Delete a user Profile by ID
 exports.deleteUserProfile = async (req, res) => {
@@ -339,5 +297,3 @@ exports.deleteUserProfile = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
-
