@@ -273,6 +273,54 @@ exports.removeLikeFromQuestion = async (req, res) => {
   }
 };
 
+// Get all questions asked by the logged-in user (sender)
+// Get questions sent by the logged-in user to users with matching tags
+exports.getQuestionsBySenderAndTagMatch = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user ID format" });
+    }
+
+    const { page = 1, limit = 10, sort = "-createdAt" } = req.query;
+
+    // Find the sender's tags
+    const senderProfile = await UserProfile.findOne({ userid: userId }).populate('tags');
+    if (!senderProfile || !senderProfile.tags.length) {
+      return res.status(404).json({ message: "Sender profile or tags not found" });
+    }
+
+    const senderTagIds = senderProfile.tags.map(tag => tag.id);
+
+    // Find questions where the tag matches the sender's tags
+    const questions = await Question.find({ 
+      userId, 
+      tag: { $in: senderTagIds }
+    })
+      .populate("userId", "username imageUrl") // Populate sender details
+      .populate("tag", "tagName")              // Populate tag details
+      .sort(sort)
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    const totalQuestions = await Question.countDocuments({ 
+      userId, 
+      tag: { $in: senderTagIds }
+    });
+
+    res.status(200).json({
+      message: "Questions fetched successfully with matching tags",
+      questions,
+      totalQuestions,
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(totalQuestions / limit),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 
 
 // // Delete a question
