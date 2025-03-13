@@ -46,13 +46,17 @@ exports.getUserProfileByusername = async (req, res) => {
 
 // Get a single user Profile by ID
 exports.getUserProfileById = async (req, res) => {
-  try {
-    const userid = req.user.userId;
-    const clgemail = req.user.email;
-    const user = await UserProfile.findById(userid);
+  console.log("hello")
 
-    if (!user) return res.status(404).json({ message: "UserProfile not found" });
-    res.json(user);
+  try {
+    console.log("hello")
+    const userid = new mongoose.Types.ObjectId(req.user.userId)
+    const clgemail = req.user.loginemail;
+    const userprofile = await UserProfile.findOne({userid:userid});
+     console.log(userid)
+     console.log(clgemail)
+    if (!userprofile) return res.status(404).json({ message: "UserProfile not found" });
+    res.json(userprofile);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
