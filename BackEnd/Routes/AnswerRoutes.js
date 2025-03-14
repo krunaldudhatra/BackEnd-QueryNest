@@ -1,8 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const AnswerController = require("../Controllers/AnswerController");
+const { authenticateUser } = require("../Controllers/AuthController");
 
-router.post("/create", AnswerController.createAnswer);
+const {createAnswer} = require("../Controllers/AnswerController");
+
+router.post("/create",authenticateUser, createAnswer);
 router.get("/", AnswerController.getAllAnswers);
 router.get("/:id", AnswerController.getAnswerById);
 router.put("/:id", AnswerController.updateAnswer);

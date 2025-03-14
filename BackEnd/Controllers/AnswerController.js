@@ -1,12 +1,10 @@
 const Answer = require("../Models/Answer.js");
 const UserProfile = require("../Models/UserProfile.js");
 const Question = require("../Models/Question.js");
+const TagDetail = require("../Models/TagDetails.js");
 const mongoose = require("mongoose");
 require("dotenv").config();
 
-const ANSWER_POST_POINT = process.env.ANSWER_POST_POINT;
-
-// Create an answer with a transaction
 exports.createAnswer = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -30,8 +28,26 @@ exports.createAnswer = async (req, res) => {
             return res.status(404).json({ error: "Question not found." });
         }
 
-        const answer = new Answer({ userId, questionId, content });
+        const tag = await TagDetail.findById(question.tag).session(session);
+        if (!tag) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({ error: "Tag not found for the question." });
+        }
+
+        const pointsEarned = tag.tagPoint;
+
+        const answer = new Answer({ 
+            userId, 
+            questionId, 
+            answer: content, 
+            point: pointsEarned
+        });
+
         const savedAnswer = await answer.save({ session });
+
+        question.answerIds.push(savedAnswer._id);
+        await question.save({ session });
 
         const userProfile = await UserProfile.findOne({ userid: userId }).session(session);
         if (!userProfile) {
@@ -42,20 +58,26 @@ exports.createAnswer = async (req, res) => {
 
         userProfile.answerIds.push(savedAnswer._id);
         userProfile.noOfAnswers = userProfile.answerIds.length;
-        userProfile.totalPoints += parseInt(ANSWER_POST_POINT);
+        userProfile.totalPoints += pointsEarned;  
         await userProfile.save({ session });
 
         await session.commitTransaction();
         session.endSession();
 
-        res.status(201).json({ message: "Answer created successfully", savedAnswer });
+        res.status(201).json({ 
+            message: "Answer created successfully", 
+            savedAnswer, 
+            pointsEarned,
+            tagName: tag.tagName,
+            answerDuration: savedAnswer.ansDuration
+        });
+
     } catch (err) {
         await session.abortTransaction();
         session.endSession();
         res.status(500).json({ error: err.message });
     }
 };
-
 // Fetch all answers with pagination and sorting
 exports.getAllAnswers = async (req, res) => {
     try {
