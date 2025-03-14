@@ -280,7 +280,7 @@ exports.getQuestionsBySenderAndTagMatch = async (req, res) => {
     const { page = 1, limit = 10, sort = "-createdAt" } = req.query;
 
     // Find the sender's profile and their tags
-    const senderProfile = await UserProfile.findOne({ userid: userId }).select("name tags");
+    const senderProfile = await UserProfile.findOne({ userid: userId }).select("name tags imageUrl");
     if (!senderProfile || !senderProfile.tags || senderProfile.tags.length === 0) {
       return res.status(404).json({ message: "Sender profile or tags not found" });
     }
@@ -315,6 +315,7 @@ exports.getQuestionsBySenderAndTagMatch = async (req, res) => {
     res.status(200).json({
       message: "Questions fetched successfully with matching tags",
       senderName: senderProfile.name,
+      senderImageUrl: senderProfile.imageUrl, // 🟢 Return the imageUrl
       questions,
       totalQuestions,
       currentPage: parseInt(page),
@@ -325,7 +326,7 @@ exports.getQuestionsBySenderAndTagMatch = async (req, res) => {
   }
 };
 
-
+// Now your API response includes the sender's profile image URL! 🚀
 
 // // Delete a question
 // exports.deleteQuestion = async (req, res) => {
