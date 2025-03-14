@@ -95,6 +95,48 @@ exports.getAllQuestions = async (req, res) => {
   }
 };
 
+exports.getQuestionById = async (req, res) => {
+  try {
+    const { questionId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(questionId)) {
+      return res.status(400).json({ error: "Invalid question ID format" });
+    }
+
+    const question = await Question.findById(questionId)
+      .populate("userId", "username imageUrl")
+      .populate("tag", "tagName")
+      .populate({
+        path: "answerIds",
+        populate: {
+          path: "userId",
+          select: "username imageUrl",
+        },
+      });
+
+    if (!question) {
+      return res.status(404).json({ error: "Question not found" });
+    }
+
+    res.status(200).json({
+      message: "Question fetched successfully",
+      question: {
+        id: question._id,
+        content: question.question,
+        user: question.userId,
+        tag: question.tag,
+        likes: question.noOfLikes,
+        likedUsers: question.likes,
+        answers: question.answerIds,
+        createdAt: question.createdAt,
+        updatedAt: question.updatedAt,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // Get all questions by user ID
 exports.getAllQuestionsByUsername = async (req, res) => {
   try {
