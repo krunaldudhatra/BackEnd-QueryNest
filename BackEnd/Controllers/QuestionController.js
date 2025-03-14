@@ -104,7 +104,7 @@ exports.getQuestionById = async (req, res) => {
     }
 
     const question = await Question.findById(questionId)
-      .populate("userId", "username imageUrl")
+      .populate("userId", "username name imageUrl")
       .populate("tag", "tagName")
       .populate({
         path: "answerIds",
