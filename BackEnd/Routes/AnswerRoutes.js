@@ -2,15 +2,15 @@ const express = require("express");
 const router = express.Router();
 const { authenticateUser } = require("../Controllers/AuthController");
 
-const {createAnswer} = require("../Controllers/AnswerController");
+const {createAnswer,getAllAnswers,getAnswerById,deleteAnswer,updateAnswer,getAnswersByUserId} = require("../Controllers/AnswerController");
 
 router.post("/create",authenticateUser, createAnswer);
-router.get("/", AnswerController.getAllAnswers);
-router.get("/:id", AnswerController.getAnswerById);
-router.put("/:id", AnswerController.updateAnswer);
-router.delete("/:id", AnswerController.deleteAnswer);
+router.get("/", getAllAnswers);
+router.get("/:id",getAnswerById);
+router.put("/:id",updateAnswer);
+router.delete("/:id",deleteAnswer);
 
-router.get("/userAnswer/:userId", AnswerController.getAnswersByUserId);
+router.get("/userAnswer/:userId",getAnswersByUserId);
 
 
 module.exports = router;
