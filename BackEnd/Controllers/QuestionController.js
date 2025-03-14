@@ -287,7 +287,7 @@ exports.getQuestionsBySenderAndTagMatch = async (req, res) => {
     const { page = 1, limit = 10, sort = "-createdAt" } = req.query;
 
     // Find the sender's profile and their tags
-    const senderProfile = await UserProfile.findOne({ userid: userId });
+    const senderProfile = await UserProfile.findOne({ userid: userId }).select("name tags");
     if (!senderProfile || !senderProfile.tags || senderProfile.tags.length === 0) {
       return res.status(404).json({ message: "Sender profile or tags not found" });
     }
@@ -308,7 +308,7 @@ exports.getQuestionsBySenderAndTagMatch = async (req, res) => {
     const questions = await Question.find({ 
       tag: { $in: senderTagIds }
     })
-      .populate("userId", "username imageUrl")
+      .populate("userId", "username name imageUrl")
       .populate("tag", "tagName")
       .sort(sort)
       .skip((page - 1) * limit)
@@ -321,6 +321,7 @@ exports.getQuestionsBySenderAndTagMatch = async (req, res) => {
 
     res.status(200).json({
       message: "Questions fetched successfully with matching tags",
+      senderName: senderProfile.name,
       questions,
       totalQuestions,
       currentPage: parseInt(page),
