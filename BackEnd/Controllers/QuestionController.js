@@ -99,10 +99,12 @@ exports.getQuestionById = async (req, res) => {
   try {
     const { questionId } = req.params;
 
+    // Validate the question ID
     if (!mongoose.Types.ObjectId.isValid(questionId)) {
       return res.status(400).json({ error: "Invalid question ID format" });
     }
 
+    // Fetch the question with populated fields
     const question = await Question.findById(questionId)
       .populate("userId", "username imageUrl")
       .populate("tag", "tagName")
@@ -112,12 +114,14 @@ exports.getQuestionById = async (req, res) => {
           path: "userId",
           select: "username imageUrl",
         },
-      });
+      })
+      .lean(); // Convert to plain JavaScript object for better performance
 
     if (!question) {
       return res.status(404).json({ error: "Question not found" });
     }
 
+    // Return the structured response
     res.status(200).json({
       message: "Question fetched successfully",
       question: {
@@ -125,17 +129,18 @@ exports.getQuestionById = async (req, res) => {
         content: question.question,
         user: question.userId,
         tag: question.tag,
-        likes: question.noOfLikes,
-        likedUsers: question.likes,
-        answers: question.answerIds,
+        likeCount: question.likes?.length || 0, // Use array length directly
+        answers: question.answerIds || [],
         createdAt: question.createdAt,
         updatedAt: question.updatedAt,
       },
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error fetching question by ID:", error);
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 };
+
 
 // Get all questions by user ID
 exports.getAllQuestionsByUsername = async (req, res) => {
