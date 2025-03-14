@@ -78,6 +78,7 @@ exports.createAnswer = async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
+
 // Fetch all answers with pagination and sorting
 exports.getAllAnswers = async (req, res) => {
     try {
@@ -104,18 +105,49 @@ exports.getAllAnswers = async (req, res) => {
     }
 };
 
-// Fetch a single answer by ID
+// Fetch a single answer by AnswerID
 exports.getAnswerById = async (req, res) => {
     try {
-        const answer = await Answer.findById(req.params.id)
-            .populate("userId questionId");
-
-        if (!answer) return res.status(404).json({ error: "Answer not found" });
-        res.json(answer);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+      const { answerId } = req.params;
+  
+      if (!mongoose.Types.ObjectId.isValid(answerId)) {
+        return res.status(400).json({ error: "Invalid answer ID format" });
+      }
+      
+  
+      const answer = await Answer.findById(answerId)
+        .populate("userId", "username name imageUrl")
+        .populate("questionId", "question")
+        .populate({
+          path: "likes",
+          select: "username imageUrl",
+        });
+  
+      if (!answer) {
+        return res.status(404).json({ error: "Answer not found" });
+      }
+  
+      res.status(200).json({
+        message: "Answer fetched successfully",
+        answer: {
+          id: answer._id,
+          content: answer.answer,
+          user: answer.userId,
+          question: answer.questionId,
+          likes: answer.noOfLikes,
+          likedUsers: answer.likes,
+          rating: answer.rating,
+          points: answer.point,
+          ansDuration: answer.ansDuration,
+          createdAt: answer.createdAt,
+          updatedAt: answer.updatedAt,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
-};
+  };
+  
 
 // Get answers by user ID
 exports.getAnswersByUserId = async (req, res) => {
