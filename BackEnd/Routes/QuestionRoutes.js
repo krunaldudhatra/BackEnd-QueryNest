@@ -3,8 +3,7 @@ const { authenticateUser } = require("../Controllers/AuthController");
 const router = express.Router();
 const {
   createQuestion,
-  likeTheQuestionByUser,
-  removeLikeFromQuestion,
+  toggleLikeOnQuestion,
 
   getQuestionsByTag,
   getAllQuestions,
@@ -13,8 +12,7 @@ const {
 } = require("../Controllers/QuestionController");
  
 router.post("/create", authenticateUser, createQuestion);  //create question
-router.post("/likeQuestion",authenticateUser,likeTheQuestionByUser)  //give like
-router.post("/removelike",authenticateUser,removeLikeFromQuestion)  //remove like 
+router.post("/togglelike",authenticateUser,toggleLikeOnQuestion)    //remove like 
 router.get("/tagQuestion",getQuestionsByTag); //to get all specific tag question
 router.get("/userQuestion/:username",authenticateUser, getAllQuestionsByUsername); // to view any of user's asked by username
 router.get("/allQuestions",getAllQuestions)  //retrive all questions

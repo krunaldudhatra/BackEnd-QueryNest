@@ -158,17 +158,16 @@ exports.getQuestionsByTag = async (req, res) => {
   }
 };
 
-// Like a question// Like a question (with transactions)
-exports.likeTheQuestionByUser = async (req, res) => {
+exports.toggleLikeOnQuestion = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
     const userId = req.user?.userId;
-    const { questionId } = req.body;
+    const { questionId, action } = req.body; // action: 'like' or 'unlike'
 
-    if (!userId || !questionId) {
-      return res.status(400).json({ message: "User ID or Question ID missing" });
+    if (!userId || !questionId || !action) {
+      return res.status(400).json({ message: "User ID, Question ID, and action are required" });
     }
 
     if (!mongoose.Types.ObjectId.isValid(questionId)) {
@@ -180,95 +179,47 @@ exports.likeTheQuestionByUser = async (req, res) => {
       return res.status(404).json({ message: "Question not found" });
     }
 
-    if (Array.isArray(question.likes) && question.likes.includes(userId)) {
-      return res.status(400).json({ message: "Question already liked" });
-    }
-
-    // Update question and user profile
-    question.likes.push(userId);
-    await question.save({ session });
-
     const userProfile = await UserProfile.findOne({ userid: userId }).session(session);
-    if (userProfile) {
-      if (!Array.isArray(userProfile.likedQuestion)) {
-        userProfile.likedQuestion = [];
+    if (!userProfile) {
+      return res.status(404).json({ message: "User profile not found" });
+    }
+
+    if (action === "like") {
+      if (question.likes.includes(userId)) {
+        return res.status(400).json({ message: "Question already liked" });
       }
 
-      if (!userProfile.likedQuestion.includes(questionId)) {
-        userProfile.likedQuestion.push(questionId);
+      question.likes.push(userId);
+      userProfile.likedQuestion.push(questionId);
+
+    } else if (action === "unlike") {
+      if (!question.likes.includes(userId)) {
+        return res.status(400).json({ message: "Question not liked yet" });
       }
-      await userProfile.save({ session });
+
+      question.likes = question.likes.filter((id) => id.toString() !== userId);
+      userProfile.likedQuestion = userProfile.likedQuestion.filter((id) => id.toString() !== questionId);
+
+    } else {
+      return res.status(400).json({ message: "Invalid action. Use 'like' or 'unlike'" });
     }
+
+    await question.save({ session });
+    await userProfile.save({ session });
 
     await session.commitTransaction();
     session.endSession();
 
     res.status(200).json({ 
-      message: "Question liked successfully", 
+      message: `Question ${action === "like" ? "liked" : "unliked"} successfully`,
       likes: question.likes.length,
-      likeCount: question.noOfLikes,
-      userProfileLikedQuestions: userProfile?.likedQuestion || [],
+      likeCount: question.likes.length, // Update like count directly
+      userProfileLikedQuestions: userProfile.likedQuestion || [],
     });
 
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
-    res.status(500).json({ error: error.message });
-  }
-};
-
-
-// Remove like from a question (with transactions)
-exports.removeLikeFromQuestion = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const userId = req.user.userId;
-    const { questionId } = req.body;
-
-    if (!mongoose.Types.ObjectId.isValid(questionId)) {
-      return res.status(400).json({ message: "Invalid question ID" });
-    }
-
-    const question = await Question.findById(questionId).session(session);
-    if (!question) {
-      return res.status(404).json({ message: "Question not found" });
-    }
-
-    const alreadyLiked = question.likes.includes(userId);
-    if (!alreadyLiked) {
-      return res.status(400).json({ message: "Question not liked yet" });
-    }
-
-    // Remove like from question and update profile
-    question.likes = question.likes.filter((id) => id.toString() !== userId);
-    await question.save({ session });
-
-    const userProfile = await UserProfile.findOne({ userid: userId }).session(session);
-    if (userProfile) {
-      userProfile.likedQuestion = userProfile.likedQuestion.filter(
-        (id) => id.toString() !== questionId
-      );
-      await userProfile.save({ session });
-    }
-
-    // Commit the transaction if everything is successful
-    await session.commitTransaction();
-    session.endSession();
-
-    res.status(200).json({ 
-      message: "Like removed successfully", 
-      likes: question.likes.length,
-      likeCount: question.noOfLikes,
-      userProfileLikedQuestions: userProfile?.likedQuestion || [],
-    });
-
-  } catch (error) {
-    // Abort transaction and roll back changes if error occurs
-    await session.abortTransaction();
-    session.endSession();
-
     res.status(500).json({ error: error.message });
   }
 };
