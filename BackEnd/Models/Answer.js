@@ -22,7 +22,12 @@ const AnswerSchema = new mongoose.Schema(
     likes: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      default: [],
     }],
+    noOfLikes: {
+      type: Number,
+      default: 0,
+    },
     rating: { type: Number, default: 0 },
     point: { type: Number, default: 0 },
   },
@@ -30,8 +35,9 @@ const AnswerSchema = new mongoose.Schema(
 );
 
 // Virtual for number of likes
-AnswerSchema.virtual("noOfLikes").get(function () {
-  return this.likes.length;
+AnswerSchema.pre("save", function (next) {
+  this.noOfLikes = this.likes.length;
+  next();
 });
 
 // Middleware to calculate answer duration

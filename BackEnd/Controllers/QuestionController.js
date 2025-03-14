@@ -94,7 +94,7 @@ exports.getAllQuestions = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
+// get question by questionid
 exports.getQuestionById = async (req, res) => {
   try {
     const { questionId } = req.params;
