@@ -129,19 +129,7 @@ exports.getAnswerById = async (req, res) => {
   
       res.status(200).json({
         message: "Answer fetched successfully",
-        answer: {
-          id: answer._id,
-          content: answer.answer,
-          user: answer.userId,
-          question: answer.questionId,
-          likes: answer.noOfLikes,
-          likedUsers: answer.likes,
-          rating: answer.rating,
-          points: answer.point,
-          ansDuration: answer.ansDuration,
-          createdAt: answer.createdAt,
-          updatedAt: answer.updatedAt,
-        },
+        answer
       });
     } catch (error) {
       res.status(500).json({ error: error.message });
