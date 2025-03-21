@@ -8,11 +8,20 @@ const UserProfileSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    clgemail: { type: String, unique: true, required: true },
+    clgemail: { type: String, unique: true },
     backupemail: { type: String, unique: true, sparse: true },
     name: { type: String, required: true },
     username: { type: String, required: true, unique: true },
     bio: { type: String, required: true },
+    tags: {
+      type: [{ type: String }],
+      validate: {
+        validator: function (tags) {
+          return tags.length <= 3;
+        },
+        message: "You can only have up to 3 tags.",
+      },
+    },
     LinkedInUrl: { type: String, unique: true, sparse: true },
     Githubusername: { type: String, required: true, unique: true },
     noOfQuestions: { type: Number, default: 0 },
@@ -29,57 +38,33 @@ const UserProfileSchema = new mongoose.Schema(
       default: 0,
       min: [0, "Total points cannot be negative."],
     },
+    questionIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Question", default: [] }],
+    answerIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Answer", default: [] }],
+    achievements: [{ type: String, default: [] }],
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User", default: [] }],
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User", default: [] }],
     noOfFollowers: { type: Number, default: 0 },
     noOfFollowing: { type: Number, default: 0 },
-    avatarColor: { type: String }, // Store fixed avatar color
     imageUrl: {
       type: String,
-      default: function () {
-        return generateImageUrl(this.name, this.avatarColor);
-      },
+      default: "https://ui-avatars.com/api/?name=User&background=random&color=fff",
     },
+    likedQuestion: [{ type: mongoose.Schema.Types.ObjectId, ref: "Question", default: [] }],
+    likedAnswer: [{ type: mongoose.Schema.Types.ObjectId, ref: "Answer", default: [] }],
   },
   { timestamps: true }
 );
 
-// Function to generate image URL with fixed color
-function generateImageUrl(name, color) {
-  if (!name) return "";
-  const words = name.split(" ");
-  const initials =
-    words.length >= 2
-      ? words[0][0].toUpperCase() + words[1][0].toUpperCase()
-      : words[0][0].toUpperCase();
-
-  return `https://ui-avatars.com/api/?name=${initials}&background=${color}&color=fff`;
-}
-
-// Middleware to sync UserProfile with User
+// Middleware to sync updates with the User schema
 UserProfileSchema.pre("save", async function (next) {
-  const isNewProfile = this.isNew;
-  const isNameChanged = this.isModified("name");
+  if (!this.isModified("name") && !this.isModified("username") && !this.isModified("clgemail") && !this.isModified("backupemail") && !this.isModified("imageUrl")) {
+    return next();
+  }
 
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const user = await mongoose.model("User").findById(this.userid).session(session);
-    if (!user) {
-      await session.abortTransaction();
-      session.endSession();
-      throw new Error("User not found for this profile.");
-    }
-
-    if (isNewProfile) {
-      // Generate a fixed color only when the profile is created
-      this.avatarColor = Math.floor(Math.random() * 16777215).toString(16);
-      this.imageUrl = generateImageUrl(this.name, this.avatarColor);
-    } else if (isNameChanged) {
-      // Only update image URL if the name is changed
-      this.imageUrl = generateImageUrl(this.name, this.avatarColor);
-    }
-
-    // Prepare updated User data
     const updatedUserData = {
       name: this.name,
       username: this.username,
@@ -88,7 +73,7 @@ UserProfileSchema.pre("save", async function (next) {
       imageUrl: this.imageUrl,
     };
 
-    // Update User
+    // Update the corresponding User document
     const updatedUser = await mongoose.model("User").findByIdAndUpdate(
       this.userid,
       updatedUserData,

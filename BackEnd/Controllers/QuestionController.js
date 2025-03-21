@@ -271,7 +271,9 @@ exports.getQuestionsBySenderAndTagMatch = async (req, res) => {
 
     // Find the sender's profile and their tags
     const senderProfile = await UserProfile.findOne({ userid: userId }).select("name tags");
-    if (!senderProfile || !senderProfile.tags || senderProfile.tags.length === 0) {
+    console.log("senderProfile:::"+senderProfile)
+ 
+    if (!senderProfile || !senderProfile.tags || senderProfile.tags.length == 0) {
       return res.status(404).json({ message: "Sender profile or tags not found" });
     }
 
