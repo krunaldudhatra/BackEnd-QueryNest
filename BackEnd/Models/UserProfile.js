@@ -24,10 +24,24 @@ const UserProfileSchema = new mongoose.Schema(
     },
     LinkedInUrl: { type: String, sparse: true },
 
-    githubUsername: { type: String, unique: true, required: true },
+    // GitHub-related fields
+    githubUsername: { type: String, unique: true, sparse: true },
     githubPublicRepos: { type: Number, default: 0 },
-    githubAvatarUrl: { type: String, required: true },
+    githubAvatarUrl: { type: String, default: "" },
+    useGithubAvatar: { type: Boolean, default: false }, // User choice
 
+    // Avatar and Image Handling
+    avatarColor: { type: String, default: generateRandomColor },
+    imageUrl: {
+      type: String,
+      default: function () {
+        return this.useGithubAvatar && this.githubAvatarUrl
+          ? this.githubAvatarUrl
+          : generateImageUrl(this.name, this.avatarColor);
+      },
+    },
+
+    // Other profile fields
     noOfQuestions: { type: Number, default: 0 },
     Graduation: { type: String },
     noOfAnswers: { type: Number, default: 0 },
@@ -49,13 +63,6 @@ const UserProfileSchema = new mongoose.Schema(
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User", default: [] }],
     noOfFollowers: { type: Number, default: 0 },
     noOfFollowing: { type: Number, default: 0 },
-    avatarColor: { type: String, default: generateRandomColor },
-    imageUrl: {
-      type: String,
-      default: function () {
-        return generateImageUrl(this.name, this.avatarColor);
-      },
-    },
     likedQuestion: [{ type: mongoose.Schema.Types.ObjectId, ref: "Question", default: [] }],
     likedAnswer: [{ type: mongoose.Schema.Types.ObjectId, ref: "Answer", default: [] }],
   },
@@ -67,7 +74,7 @@ function generateRandomColor() {
   return Math.floor(Math.random() * 16777215).toString(16);
 }
 
-// Function to generate the avatar URL
+// Function to generate the avatar URL (only if user doesn't use GitHub avatar)
 function generateImageUrl(name, color) {
   if (!name) return "";
   const words = name.split(" ");
@@ -81,7 +88,7 @@ function generateImageUrl(name, color) {
 
 // Middleware to sync updates with the User schema
 UserProfileSchema.pre("save", async function (next) {
-  if (!this.isModified("name") && !this.isModified("username") && !this.isModified("clgemail") && !this.isModified("backupemail") && !this.isModified("imageUrl") && !this.isModified("avatarColor")) {
+  if (!this.isModified("name") && !this.isModified("username") && !this.isModified("clgemail") && !this.isModified("backupemail") && !this.isModified("imageUrl") && !this.isModified("avatarColor") && !this.isModified("useGithubAvatar")) {
     return next();
   }
 
@@ -96,7 +103,9 @@ UserProfileSchema.pre("save", async function (next) {
       clgemail: this.clgemail,
       backupemail: this.backupemail,
       avatarColor: this.avatarColor,
-      imageUrl: this.imageUrl,
+      imageUrl: this.useGithubAvatar && this.githubAvatarUrl
+        ? this.githubAvatarUrl
+        : generateImageUrl(this.name, this.avatarColor),
     };
 
     const updatedUser = await mongoose.model("User").findByIdAndUpdate(
@@ -120,33 +129,5 @@ UserProfileSchema.pre("save", async function (next) {
     next(error);
   }
 });
-
-// Function to update avatar color every hour
-async function updateAvatarColors() {
-  try {
-    const userProfiles = await mongoose.model("UserProfile").find();
-
-    for (const profile of userProfiles) {
-      const newColor = generateRandomColor();
-      const newImageUrl = generateImageUrl(profile.name, newColor);
-
-      await mongoose.model("UserProfile").findByIdAndUpdate(profile._id, {
-        avatarColor: newColor,
-        imageUrl: newImageUrl,
-      });
-
-      await mongoose.model("User").findByIdAndUpdate(profile.userid, {
-        avatarColor: newColor,
-        imageUrl: newImageUrl,
-      });
-    }
-    console.log("Avatar colors updated for all users.");
-  } catch (error) {
-    console.error("Error updating avatar colors:", error);
-  }
-}
-
-// Run the color update function every hour
-setInterval(updateAvatarColors, 60 * 60 * 1000); // 1 hour interval
 
 module.exports = mongoose.model("UserProfile", UserProfileSchema);

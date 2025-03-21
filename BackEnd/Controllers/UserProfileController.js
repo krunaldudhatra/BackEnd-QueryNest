@@ -4,6 +4,18 @@ const User = require("../Models/User");
 const isValidObjectId = mongoose.Types.ObjectId.isValid;
 const axios = require("axios");
 
+// Function to generate avatar based on initials
+function generateImageUrl(name, color) {
+  if (!name) return "";
+  const words = name.split(" ");
+  const initials =
+    words.length >= 2
+      ? words[0][0].toUpperCase() + words[1][0].toUpperCase()
+      : words[0][0].toUpperCase();
+
+  return `https://ui-avatars.com/api/?name=${initials}&background=${color}&color=fff`;
+}
+
 // Get all user Profiles
 exports.getAllUserProfile = async (req, res) => {
   try {
@@ -88,18 +100,17 @@ exports.createUserProfile = async (req, res) => {
       tags,
       LinkedInUrl,
       githubUsername,
+      useGithubAvatar,
       Graduation,
       backupemail,
     } = req.body;
 
     if (tags && tags.length > 3) {
-      return res
-        .status(400)
-        .json({
-          error: "You can only have up to 3 tags.",
-          yourTags: tags,
-          length: tags.length,
-        });
+      return res.status(400).json({
+        error: "You can only have up to 3 tags.",
+        yourTags: tags,
+        length: tags.length,
+      });
     }
 
     // Ensure LinkedInUrl, githubUsername, and backupemail are unique
@@ -112,35 +123,29 @@ exports.createUserProfile = async (req, res) => {
     }
 
     if (githubUsername) {
-      const existingGithub = await UserProfile.findOne({
-        githubUsername,
-      }).session(session);
+      const existingGithub = await UserProfile.findOne({githubUsername}).session(session);
       if (existingGithub)
-        return res
-          .status(400)
-          .json({ error: "GitHub username already in use." });
+        return res.status(400).json({ error: "GitHub username already in use." });
 
       // Fetch GitHub Data (Public Repos & Avatar)
       try {
-        const githubResponse = await axios.get(
-          `https://api.github.com/users/${githubUsername}`
-        );
+        const githubResponse = await axios.get(`https://api.github.com/users/${githubUsername}`);
         var githubPublicRepos = githubResponse.data.public_repos;
         var githubAvatarUrl = githubResponse.data.avatar_url;
       } catch (githubError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid GitHub username or API request failed." });
+        return res.status(400).json({ error: "Invalid GitHub username or API request failed." });
       }
     }
 
     if (backupemail) {
-      const existingBackupEmail = await UserProfile.findOne({
-        backupemail,
-      }).session(session);
+      const existingBackupEmail = await UserProfile.findOne({backupemail}).session(session);
       if (existingBackupEmail)
         return res.status(400).json({ error: "Backup email already in use." });
     }
+    const avatarColor = Math.floor(Math.random() * 16777215).toString(16);
+    const imageUrl = useGithubAvatar && githubAvatarUrl
+      ? githubAvatarUrl
+      : generateImageUrl(name, avatarColor);
 
     const userProfileData = {
       userid,
@@ -149,12 +154,15 @@ exports.createUserProfile = async (req, res) => {
       clgemail: loginemail,
       bio,
       tags,
-      LinkedInUrl,
+      LinkedInUrl, 
+      avatarColor,
+      useGithubAvatar: !!useGithubAvatar,
       githubUsername,
       githubPublicRepos: githubPublicRepos || 0,
       githubAvatarUrl: githubAvatarUrl || "",
       Graduation,
       backupemail,
+      imageUrl,
     };
 
     // Save the profile
@@ -169,9 +177,7 @@ exports.createUserProfile = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    res
-      .status(201)
-      .json({ message: "User profile created successfully!", userProfile });
+    res.status(201).json({ message: "User profile created successfully!", userProfile });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
@@ -188,7 +194,7 @@ exports.updateUserProfile = async (req, res) => {
     const userid = req.user.userId;
     if (!userid) return res.status(400).json({ error: "User ID is required." });
 
-    const { name, bio, LinkedInUrl, githubUsername, Graduation } = req.body;
+    const { name, bio, LinkedInUrl, githubUsername, Graduation , useGithubAvatar } = req.body;
 
     const changeableFields = {
       name,
@@ -196,6 +202,7 @@ exports.updateUserProfile = async (req, res) => {
       LinkedInUrl,
       githubUsername,
       Graduation,
+      useGithubAvatar
     };
 
     // Remove undefined fields
