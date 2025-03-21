@@ -123,29 +123,40 @@ exports.createUserProfile = async (req, res) => {
     }
 
     if (githubUsername) {
-      const existingGithub = await UserProfile.findOne({githubUsername}).session(session);
+      const existingGithub = await UserProfile.findOne({
+        githubUsername,
+      }).session(session);
       if (existingGithub)
-        return res.status(400).json({ error: "GitHub username already in use." });
+        return res
+          .status(400)
+          .json({ error: "GitHub username already in use." });
 
       // Fetch GitHub Data (Public Repos & Avatar)
       try {
-        const githubResponse = await axios.get(`https://api.github.com/users/${githubUsername}`);
+        const githubResponse = await axios.get(
+          `https://api.github.com/users/${githubUsername}`
+        );
         var githubPublicRepos = githubResponse.data.public_repos;
         var githubAvatarUrl = githubResponse.data.avatar_url;
       } catch (githubError) {
-        return res.status(400).json({ error: "Invalid GitHub username or API request failed." });
+        return res
+          .status(400)
+          .json({ error: "Invalid GitHub username or API request failed." });
       }
     }
 
     if (backupemail) {
-      const existingBackupEmail = await UserProfile.findOne({backupemail}).session(session);
+      const existingBackupEmail = await UserProfile.findOne({
+        backupemail,
+      }).session(session);
       if (existingBackupEmail)
         return res.status(400).json({ error: "Backup email already in use." });
     }
     const avatarColor = Math.floor(Math.random() * 16777215).toString(16);
-    const imageUrl = useGithubAvatar && githubAvatarUrl
-      ? githubAvatarUrl
-      : generateImageUrl(name, avatarColor);
+    const imageUrl =
+      useGithubAvatar && githubAvatarUrl
+        ? githubAvatarUrl
+        : generateImageUrl(name, avatarColor);
 
     const userProfileData = {
       userid,
@@ -154,7 +165,7 @@ exports.createUserProfile = async (req, res) => {
       clgemail: loginemail,
       bio,
       tags,
-      LinkedInUrl, 
+      LinkedInUrl,
       avatarColor,
       useGithubAvatar: !!useGithubAvatar,
       githubUsername,
@@ -177,7 +188,9 @@ exports.createUserProfile = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    res.status(201).json({ message: "User profile created successfully!", userProfile });
+    res
+      .status(201)
+      .json({ message: "User profile created successfully!", userProfile });
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
@@ -194,7 +207,14 @@ exports.updateUserProfile = async (req, res) => {
     const userid = req.user.userId;
     if (!userid) return res.status(400).json({ error: "User ID is required." });
 
-    const { name, bio, LinkedInUrl, githubUsername, Graduation , useGithubAvatar } = req.body;
+    const {
+      name,
+      bio,
+      LinkedInUrl,
+      githubUsername,
+      Graduation,
+      useGithubAvatar,
+    } = req.body;
 
     const changeableFields = {
       name,
@@ -202,7 +222,7 @@ exports.updateUserProfile = async (req, res) => {
       LinkedInUrl,
       githubUsername,
       Graduation,
-      useGithubAvatar
+      useGithubAvatar,
     };
 
     // Remove undefined fields
@@ -235,19 +255,31 @@ exports.updateUserProfile = async (req, res) => {
         const githubResponse = await axios.get(
           `https://api.github.com/users/${githubUsername}`
         );
-         changeableFields.useGithubAvatar=useGithubAvatar;
+        changeableFields.useGithubAvatar = useGithubAvatar;
         changeableFields.githubPublicRepos = githubResponse.data.public_repos;
         changeableFields.githubAvatarUrl = githubResponse.data.avatar_url;
-       } 
-      catch (githubError) {
-        console.error("GitHub API Error:", githubError.response?.data || githubError.message);
+      } catch (githubError) {
+        console.error(
+          "GitHub API Error:",
+          githubError.response?.data || githubError.message
+        );
+
+        // Check if it's a rate limit issue
+        if (
+          githubError.response?.status === 403 &&
+          githubError.response?.headers["x-ratelimit-remaining"] === "0"
+        ) {
+          return res.status(429).json({
+            error: "GitHub API rate limit exceeded. Please try again later.",
+            details: "Check GitHub API documentation for rate limits.",
+          });
+        }
+
         return res.status(400).json({
-          error: "Invalid GitHub username or API request failed by controller.",
-          details: githubError.response?.data || githubError.message,
+          error: "Invalid GitHub username or API request failed.",
+          details: githubError.response?.data?.message || githubError.message,
         });
       }
-      
-      
     }
 
     // Update profile
