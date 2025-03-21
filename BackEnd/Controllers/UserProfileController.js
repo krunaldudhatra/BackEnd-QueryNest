@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const UserProfile = require("../Models/UserProfile");
 const User = require("../Models/User");
 const isValidObjectId = mongoose.Types.ObjectId.isValid;
+const axios = require("axios");
 
 // Get all user Profiles
 exports.getAllUserProfile = async (req, res) => {
@@ -21,7 +22,7 @@ exports.getUserProfileByusername = async (req, res) => {
     // Find the user by username
     // const userProfile = await UserProfile.findOne({ username });
 
-     // Find the user profile by username and select only the required fields
+    // Find the user profile by username and select only the required fields
     const userProfile = await UserProfile.findOne({ username })
       .select(
         "bio username tags LinkedInUrl Githubusername noOfQuestions Graduation noOfAnswers avgRating totalPoints questionIds answerIds achievements followers following noOfFollowers noOfFollowing imageUrl"
@@ -54,7 +55,7 @@ exports.getUserProfileById = async (req, res) => {
     }
 
     const userprofile = await UserProfile.findOne({ userid: userid });
-    
+
     if (!userprofile) {
       return res.status(404).json({ message: "UserProfile not found" });
     }
@@ -65,215 +66,186 @@ exports.getUserProfileById = async (req, res) => {
   }
 };
 
-// Let me know if you’d like me to tweak anything! ✌️
-
-
-// create profile for registered user
-// exports.createUserProfile = async (req, res) => {
-//   const userid = req.user.userId;
-//   const loginemail = req.user.loginemail;
-//   try {
-//     const {
-//       name,
-//       bio,
-//       tags,
-//       LinkedInUrl,
-//       Githubusername,
-//       Graduation,
-//       backupemail,
-//     } = req.body;
-
-//     // Validate required fields
-//     if (!userid) return res.status(400).json({ error: "User ID is required." });
-//     if (!isValidObjectId(userid))
-//       return res.status(400).json({ error: "Invalid user ID format." });
-
-//     // Validate if the user exists
-//     const user = await User.findOne({ _id: userid });
-//     if (!user) return res.status(404).json({ error: "User not found." });
-
-//     const username = user.username;
-
-//     // Validate `tags` length
-//     if (tags && tags.length > 3) {
-//       return res.status(400).json({ error: "You can only have up to 3 tags." });
-//     }
-
-//     // Check if LinkedIn and GitHub usernames are unique
-//     const existingProfile = await UserProfile.findOne({
-//       $or: [{ LinkedInUrl }, { Githubusername }],
-//     });
-
-//     if (existingProfile) {
-//       return res
-//         .status(400)
-//         .json({ error: "LinkedIn or GitHub username is already in use." });
-//     }
-
-//     // Check if backup email is already taken
-//     if (backupemail) {
-//       const existingBackupEmail = await UserProfile.findOne({ backupemail });
-//       if (existingBackupEmail) {
-//         return res
-//           .status(400)
-//           .json({ error: "Backup email is already in use." });
-//       }
-//     }
-
-//     // Create user profile
-//     const userProfileData = {
-//       userid,
-//       name,
-//       username,
-//       clgemail:loginemail,
-//       bio,
-//       tags,
-//       LinkedInUrl,
-//       Githubusername,
-//       Graduation,
-//       backupemail,
-//     };
-
-//     const userProfile = new UserProfile(userProfileData);
-//     await userProfile.save();
-//     user.isProfileCompleted=true;
-//      await user.save();  
-
-//     res
-//       .status(201)
-//       .json({ message: "User profile created successfully!", userProfile });
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
+// Create a new user profile
 exports.createUserProfile = async (req, res) => {
-  const userid = req.user.userId;
-  const loginemail = req.user.loginemail;
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
+    const userid = req.user.userId;
+    const loginemail = req.user.loginemail;
+
+    if (!userid) return res.status(400).json({ error: "User ID is required." });
+    if (!mongoose.Types.ObjectId.isValid(userid))
+      return res.status(400).json({ error: "Invalid user ID format." });
+
+    const user = await User.findById(userid).session(session);
+    if (!user) return res.status(404).json({ error: "User not found." });
+
     const {
       name,
       bio,
       tags,
       LinkedInUrl,
-      Githubusername,
+      githubUsername,
       Graduation,
       backupemail,
     } = req.body;
 
-    if (!userid) return res.status(400).json({ error: "User ID is required." });
-    if (!isValidObjectId(userid))
-      return res.status(400).json({ error: "Invalid user ID format." });
-
-    const user = await User.findOne({ _id: userid });
-    if (!user) return res.status(404).json({ error: "User not found." });
-
-    const username = user.username;
-
     if (tags && tags.length > 3) {
-      return res.status(400).json({ error: "You can only have up to 3 tags." ,yourTags:tags,length:tags.length });
+      return res
+        .status(400)
+        .json({
+          error: "You can only have up to 3 tags.",
+          yourTags: tags,
+          length: tags.length,
+        });
     }
 
-
-    // **🔹 Fix: Check only if LinkedInUrl or Githubusername are provided**
+    // Ensure LinkedInUrl, githubUsername, and backupemail are unique
     if (LinkedInUrl) {
-      const existingLinkedIn = await UserProfile.findOne({ LinkedInUrl });
-      if (existingLinkedIn) {
+      const existingLinkedIn = await UserProfile.findOne({
+        LinkedInUrl,
+      }).session(session);
+      if (existingLinkedIn)
         return res.status(400).json({ error: "LinkedIn URL already in use." });
-      }
     }
 
-    if (Githubusername) {
-      const existingGithub = await UserProfile.findOne({ Githubusername });
-      if (existingGithub) {
-        return res.status(400).json({ error: "GitHub username already in use." });
+    if (githubUsername) {
+      const existingGithub = await UserProfile.findOne({
+        githubUsername,
+      }).session(session);
+      if (existingGithub)
+        return res
+          .status(400)
+          .json({ error: "GitHub username already in use." });
+
+      // Fetch GitHub Data (Public Repos & Avatar)
+      try {
+        const githubResponse = await axios.get(
+          `https://api.github.com/users/${githubUsername}`
+        );
+        var githubPublicRepos = githubResponse.data.public_repos;
+        var githubAvatarUrl = githubResponse.data.avatar_url;
+      } catch (githubError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid GitHub username or API request failed." });
       }
     }
 
     if (backupemail) {
-      const existingBackupEmail = await UserProfile.findOne({ backupemail });
-      if (existingBackupEmail) {
+      const existingBackupEmail = await UserProfile.findOne({
+        backupemail,
+      }).session(session);
+      if (existingBackupEmail)
         return res.status(400).json({ error: "Backup email already in use." });
-      }
     }
 
     const userProfileData = {
       userid,
       name,
-      username,
+      username: user.username,
       clgemail: loginemail,
       bio,
       tags,
-      LinkedInUrl: LinkedInUrl  , // **Ensure it's not undefined**
-      Githubusername: Githubusername  , // **Ensure it's not undefined**
+      LinkedInUrl,
+      githubUsername,
+      githubPublicRepos: githubPublicRepos || 0,
+      githubAvatarUrl: githubAvatarUrl || "",
       Graduation,
       backupemail,
     };
 
-    console.log("LinkedIn:"+LinkedInUrl)
-    console.log("Githubusernnam:"+Githubusername)
-
+    // Save the profile
     const userProfile = new UserProfile(userProfileData);
-    await userProfile.save();
-    user.isProfileCompleted = true;
-    await user.save();
+    await userProfile.save({ session });
 
-    res.status(201).json({ message: "User profile created successfully!", userProfile });
+    // Mark user profile as completed
+    user.isProfileCompleted = true;
+    await user.save({ session });
+
+    // Commit transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    res
+      .status(201)
+      .json({ message: "User profile created successfully!", userProfile });
   } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
     res.status(500).json({ error: err.message });
   }
 };
 
- // Update a user profile by ID
+// Update user profile
 exports.updateUserProfile = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const userid = req.user.userId; // Extract user ID from the authenticated request
-    const loginemail = req.user.loginemail; // Extract email from the authenticated request
+    const userid = req.user.userId;
+    if (!userid) return res.status(400).json({ error: "User ID is required." });
 
-    const {name, username, bio, LinkedInUrl, Githubusername, Graduation } =
-      req.body;
+    const { name, bio, LinkedInUrl, githubUsername, Graduation } = req.body;
 
-    // Define the fields that can be updated
     const changeableFields = {
       name,
-      username,
       bio,
       LinkedInUrl,
-      Githubusername,
+      githubUsername,
       Graduation,
     };
 
     // Remove undefined fields
     Object.keys(changeableFields).forEach((key) => {
-      if (changeableFields[key] === undefined) {
-        delete changeableFields[key];
-      }
+      if (changeableFields[key] === undefined) delete changeableFields[key];
     });
 
-    // If no valid fields to update, return an error
     if (Object.keys(changeableFields).length === 0) {
-      return res.status(400).json({ error: "No valid fields to update" });
+      return res.status(400).json({ error: "No valid fields to update." });
     }
 
-    // Find the existing user profile
-    const userProfile = await UserProfile.findOne({ userid });
-
+    // Fetch the existing user profile
+    const userProfile = await UserProfile.findOne({ userid }).session(session);
     if (!userProfile) {
-      return res.status(404).json({ message: "User profile not found" });
+      return res.status(404).json({ error: "User profile not found." });
     }
 
-    // Update only if fields are provided
+    // Check if GitHub username is updated and fetch new data
+    if (githubUsername && githubUsername !== userProfile.githubUsername) {
+      const existingGithub = await UserProfile.findOne({
+        githubUsername,
+      }).session(session);
+      if (existingGithub)
+        return res
+          .status(400)
+          .json({ error: "GitHub username already in use." });
+
+      // Fetch GitHub Data
+      try {
+        const githubResponse = await axios.get(
+          `https://api.github.com/users/${githubUsername}`
+        );
+        changeableFields.githubPublicRepos = githubResponse.data.public_repos;
+        changeableFields.githubAvatarUrl = githubResponse.data.avatar_url;
+      } catch (githubError) {
+        return res
+          .status(400)
+          .json({ error: "Invalid GitHub username or API request failed." });
+      }
+    }
+
+    // Update profile
     Object.assign(userProfile, changeableFields);
+    await userProfile.save({ session });
 
-    // If the username is updated, also update in the User schema
-    if (username) {
-      await User.findByIdAndUpdate(userid, { username });
-    }
+    // Commit transaction
+    await session.commitTransaction();
+    session.endSession();
 
-    // Save the updated profile (this won’t create a new object)
-    await userProfile.save();
-
-    // Remove _id from the response (optional)
+    // Remove _id from response
     const { _id, ...profileWithoutId } = userProfile.toObject();
 
     res.json({
@@ -281,6 +253,8 @@ exports.updateUserProfile = async (req, res) => {
       userProfile: profileWithoutId,
     });
   } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
     res.status(500).json({ error: err.message });
   }
 };
