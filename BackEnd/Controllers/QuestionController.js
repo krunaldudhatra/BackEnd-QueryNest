@@ -103,16 +103,28 @@ exports.getQuestionById = async (req, res) => {
       return res.status(400).json({ error: "Invalid question ID format" });
     }
 
+    // const question = await Question.findById(questionId)
+    //   .populate("userId", "username name imageUrl")
+    //   .populate("tag", "tagName")
+    //   .populate({
+    //     path: "answerIds",
+    //     populate: {
+    //       path: "userId",
+    //       select: "username imageUrl",
+    //     },
+    //   });
+
     const question = await Question.findById(questionId)
-      .populate("userId", "username name imageUrl")
-      .populate("tag", "tagName")
-      .populate({
-        path: "answerIds",
-        populate: {
-          path: "userId",
-          select: "username imageUrl",
-        },
-      });
+  .populate("userId", "username name imageUrl") // Populates question's userId
+  .populate("tag", "tagName") // Populates tag details
+  .populate({
+    path: "answerIds",
+    populate: {
+      path: "userId",
+      select: "username name imageUrl", // Populates userId inside answerIds
+    },
+  });
+
 
     if (!question) {
       return res.status(404).json({ error: "Question not found" });
