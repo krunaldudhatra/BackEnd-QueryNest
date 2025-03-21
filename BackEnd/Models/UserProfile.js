@@ -1,4 +1,23 @@
 const mongoose = require("mongoose");
+const axios = require("axios");
+
+// Function to generate a random color
+function generateRandomColor() {
+  return Math.floor(Math.random() * 16777215).toString(16);
+}
+
+// Function to generate the avatar URL
+function generateImageUrl(name) {
+  if (!name) return "";
+  const words = name.split(" ");
+  const initials =
+    words.length >= 2
+      ? words[0][0].toUpperCase() + words[1][0].toUpperCase()
+      : words[0][0].toUpperCase();
+  
+  const randomColor = generateRandomColor();
+  return `https://ui-avatars.com/api/?name=${initials}&background=${randomColor}&color=fff`;
+}
 
 const UserProfileSchema = new mongoose.Schema(
   {
@@ -28,16 +47,15 @@ const UserProfileSchema = new mongoose.Schema(
     githubUsername: { type: String, unique: true, sparse: true },
     githubPublicRepos: { type: Number, default: 0 },
     githubAvatarUrl: { type: String, default: "" },
-    useGithubAvatar: { type: Boolean, default: false }, // User choice
+    useGithubAvatar: { type: Boolean, default: false },
 
     // Avatar and Image Handling
-    avatarColor: { type: String, default: generateRandomColor },
     imageUrl: {
       type: String,
       default: function () {
         return this.useGithubAvatar && this.githubAvatarUrl
           ? this.githubAvatarUrl
-          : generateImageUrl(this.name, this.avatarColor);
+          : generateImageUrl(this.name);
       },
     },
 
@@ -69,23 +87,6 @@ const UserProfileSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Function to generate a random color
-function generateRandomColor() {
-  return Math.floor(Math.random() * 16777215).toString(16);
-}
-
-// Function to generate the avatar URL (only if user doesn't use GitHub avatar)
-function generateImageUrl(name, color) {
-  if (!name) return "";
-  const words = name.split(" ");
-  const initials =
-    words.length >= 2
-      ? words[0][0].toUpperCase() + words[1][0].toUpperCase()
-      : words[0][0].toUpperCase();
-
-  return `https://ui-avatars.com/api/?name=${initials}&background=${color}&color=fff`;
-}
-
 // Middleware to sync updates with the User schema
 UserProfileSchema.pre("save", async function (next) {
   if (
@@ -94,8 +95,8 @@ UserProfileSchema.pre("save", async function (next) {
     !this.isModified("clgemail") &&
     !this.isModified("backupemail") &&
     !this.isModified("imageUrl") &&
-    !this.isModified("avatarColor") &&
-    !this.isModified("useGithubAvatar")
+    !this.isModified("useGithubAvatar") &&
+    !this.isModified("githubUsername")
   ) {
     return next();
   }
@@ -104,11 +105,33 @@ UserProfileSchema.pre("save", async function (next) {
   session.startTransaction();
 
   try {
-    // Ensure the correct avatar is assigned based on updated `useGithubAvatar`
-    if (this.isModified("useGithubAvatar") || this.isModified("githubAvatarUrl") || this.isModified("avatarColor")) {
-      this.imageUrl = this.useGithubAvatar && this.githubAvatarUrl
-        ? this.githubAvatarUrl
-        : generateImageUrl(this.name, this.avatarColor);
+    // If `githubUsername` changed, fetch new avatar and repo count
+    if (this.isModified("githubUsername") && this.githubUsername) {
+      try {
+        const githubResponse = await axios.get(
+          `https://api.github.com/users/${this.githubUsername}`
+        );
+        this.githubAvatarUrl = githubResponse.data.avatar_url;
+        this.githubPublicRepos = githubResponse.data.public_repos;
+      } catch (githubError) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(
+          new Error(
+            `Invalid GitHub username or API request failed: ${
+              githubError.response?.data?.message || githubError.message
+            }`
+          )
+        );
+      }
+    }
+
+    // Ensure `imageUrl` updates correctly based on `useGithubAvatar`
+    if (this.isModified("useGithubAvatar") || this.isModified("githubAvatarUrl") || this.isModified("githubUsername")) {
+      this.imageUrl =
+        this.useGithubAvatar && this.githubAvatarUrl
+          ? this.githubAvatarUrl
+          : generateImageUrl(this.name);
     }
 
     // Sync user data with User schema
@@ -117,8 +140,7 @@ UserProfileSchema.pre("save", async function (next) {
       username: this.username,
       clgemail: this.clgemail,
       backupemail: this.backupemail,
-      avatarColor: this.avatarColor,
-      imageUrl: this.imageUrl, // Updated imageUrl based on the latest `useGithubAvatar`
+      imageUrl: this.imageUrl, // Updated imageUrl
     };
 
     const updatedUser = await mongoose.model("User").findByIdAndUpdate(

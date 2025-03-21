@@ -19,4 +19,5 @@ router.post("/createUserProfile",authenticateUser, createUserProfile);
 router.put("/updateUserProfile",authenticateUser, updateUserProfile);
 router.delete("/:id", deleteUserProfile);
 
+
 module.exports = router;

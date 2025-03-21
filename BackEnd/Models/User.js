@@ -9,20 +9,15 @@ const UserSchema = new mongoose.Schema(
     password: { type: String, required: true },
     verified: { type: Boolean, default: false },
     isProfileCompleted: { type: Boolean, default: false },
-    avatarColor: { type: String, default: generateRandomColor }, // Random color
-    imageUrl: { type: String }, // No default function, update from UserProfile
+
+    imageUrl: { type: String }, // Updated from UserProfile
   },
   { timestamps: true }
 );
 
-// Function to generate a random color
-function generateRandomColor() {
-  return Math.floor(Math.random() * 16777215).toString(16);
-}
-
-// Middleware to sync updates from UserProfile
+// Middleware to sync updates from UserProfile → User
 UserSchema.pre("save", async function (next) {
-  if (!this.isModified("name") && !this.isModified("username") && !this.isModified("clgemail") && !this.isModified("backupemail") && !this.isModified("avatarColor") && !this.isModified("imageUrl")) {
+  if (!this.isModified("name") && !this.isModified("username") && !this.isModified("clgemail") && !this.isModified("backupemail") && !this.isModified("imageUrl")) {
     return next();
   }
 
@@ -30,26 +25,18 @@ UserSchema.pre("save", async function (next) {
   session.startTransaction();
 
   try {
-    const updatedProfileData = {
-      name: this.name,
-      username: this.username,
-      clgemail: this.clgemail,
-      backupemail: this.backupemail,
-      avatarColor: this.avatarColor,
-      imageUrl: this.imageUrl,
-    };
-
-    const updatedProfile = await mongoose.model("UserProfile").findOneAndUpdate(
-      { userid: this._id },
-      updatedProfileData,
-      { new: true, session }
-    );
-
-    if (!updatedProfile) {
-      await session.abortTransaction();
-      session.endSession();
-      throw new Error("UserProfile update failed.");
+    // Ensure UserProfile exists
+    const userProfile = await mongoose.model("UserProfile").findOne({ userid: this._id });
+    if (!userProfile) {
+      throw new Error("UserProfile not found for this user.");
     }
+
+    // Update User fields based on UserProfile changes
+    this.name = userProfile.name;
+    this.username = userProfile.username;
+    this.clgemail = userProfile.clgemail;
+    this.backupemail = userProfile.backupemail;
+    this.imageUrl = userProfile.imageUrl;
 
     await session.commitTransaction();
     session.endSession();

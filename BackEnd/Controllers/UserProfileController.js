@@ -235,14 +235,19 @@ exports.updateUserProfile = async (req, res) => {
         const githubResponse = await axios.get(
           `https://api.github.com/users/${githubUsername}`
         );
-        changeableFields.useGithubAvatar=useGithubAvatar;
+         changeableFields.useGithubAvatar=useGithubAvatar;
         changeableFields.githubPublicRepos = githubResponse.data.public_repos;
         changeableFields.githubAvatarUrl = githubResponse.data.avatar_url;
-      } catch (githubError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid GitHub username or API request failed." });
+       } 
+      catch (githubError) {
+        console.error("GitHub API Error:", githubError.response?.data || githubError.message);
+        return res.status(400).json({
+          error: "Invalid GitHub username or API request failed by controller.",
+          details: githubError.response?.data || githubError.message,
+        });
       }
+      
+      
     }
 
     // Update profile
