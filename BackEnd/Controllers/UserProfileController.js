@@ -235,6 +235,7 @@ exports.updateUserProfile = async (req, res) => {
         const githubResponse = await axios.get(
           `https://api.github.com/users/${githubUsername}`
         );
+        changeableFields.useGithubAvatar=useGithubAvatar;
         changeableFields.githubPublicRepos = githubResponse.data.public_repos;
         changeableFields.githubAvatarUrl = githubResponse.data.avatar_url;
       } catch (githubError) {

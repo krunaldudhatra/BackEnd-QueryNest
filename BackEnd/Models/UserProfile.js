@@ -88,7 +88,15 @@ function generateImageUrl(name, color) {
 
 // Middleware to sync updates with the User schema
 UserProfileSchema.pre("save", async function (next) {
-  if (!this.isModified("name") && !this.isModified("username") && !this.isModified("clgemail") && !this.isModified("backupemail") && !this.isModified("imageUrl") && !this.isModified("avatarColor") && !this.isModified("useGithubAvatar")) {
+  if (
+    !this.isModified("name") &&
+    !this.isModified("username") &&
+    !this.isModified("clgemail") &&
+    !this.isModified("backupemail") &&
+    !this.isModified("imageUrl") &&
+    !this.isModified("avatarColor") &&
+    !this.isModified("useGithubAvatar")
+  ) {
     return next();
   }
 
@@ -96,6 +104,13 @@ UserProfileSchema.pre("save", async function (next) {
   session.startTransaction();
 
   try {
+    // Ensure the correct avatar is assigned based on updated `useGithubAvatar`
+    if (this.isModified("useGithubAvatar") || this.isModified("githubAvatarUrl") || this.isModified("avatarColor")) {
+      this.imageUrl = this.useGithubAvatar && this.githubAvatarUrl
+        ? this.githubAvatarUrl
+        : generateImageUrl(this.name, this.avatarColor);
+    }
+
     // Sync user data with User schema
     const updatedUserData = {
       name: this.name,
@@ -103,9 +118,7 @@ UserProfileSchema.pre("save", async function (next) {
       clgemail: this.clgemail,
       backupemail: this.backupemail,
       avatarColor: this.avatarColor,
-      imageUrl: this.useGithubAvatar && this.githubAvatarUrl
-        ? this.githubAvatarUrl
-        : generateImageUrl(this.name, this.avatarColor),
+      imageUrl: this.imageUrl, // Updated imageUrl based on the latest `useGithubAvatar`
     };
 
     const updatedUser = await mongoose.model("User").findByIdAndUpdate(
