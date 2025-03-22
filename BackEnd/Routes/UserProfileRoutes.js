@@ -2,18 +2,18 @@
 const express = require("express");
 const router = express.Router();
 const {
-  getAllUserProfile,
   createUserProfile,
   getUserProfileById,
   updateUserProfile,
   deleteUserProfile,
-  getUserProfileByusername
+  getUserProfileByusername,
+  searchUsers
 } = require("../Controllers/UserProfileController");
 
 const {authenticateUser}=require("../Controllers/AuthController")
 
-// router.get("/", getAllUserProfile);
 router.get("/me", authenticateUser , getUserProfileById);
+router.get("/searchUser/search",authenticateUser, searchUsers);
 router.get("/username/:username",  getUserProfileByusername);
 router.post("/createUserProfile",authenticateUser, createUserProfile);
 router.put("/updateUserProfile",authenticateUser, updateUserProfile);

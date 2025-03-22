@@ -19,8 +19,5 @@ router.get("/userQuestion/:username",authenticateUser, getAllQuestionsByUsername
 router.get("/allQuestions",getAllQuestions)  //retrive all questions
 router.get("/tagmatchquestion",authenticateUser,getQuestionsBySenderAndTagMatch) 
 
-router.get("/")
-
-
 
 module.exports = router;

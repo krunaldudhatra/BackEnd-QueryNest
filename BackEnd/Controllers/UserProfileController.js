@@ -281,7 +281,6 @@ exports.updateUserProfile = async (req, res) => {
         });
       }
     }
-
     // Update profile
     Object.assign(userProfile, changeableFields);
     await userProfile.save({ session });
@@ -301,6 +300,37 @@ exports.updateUserProfile = async (req, res) => {
     await session.abortTransaction();
     session.endSession();
     res.status(500).json({ error: err.message });
+  }
+};
+
+//search by name and username
+exports.searchUsers = async (req, res) => {
+  try {
+    const { query, page = 1, limit = 10 } = req.query;
+
+    if (!query) {
+      return res.status(400).json({ message: "Search query is required" });
+    }
+
+    const searchRegex = new RegExp(query, "i"); // Case-insensitive search
+
+    const users = await UserProfile.find(
+      {
+        $or: [
+          { name: searchRegex },
+          { username: searchRegex },
+          { bio: searchRegex },
+        ],
+      },
+      "userid name username bio imageUrl" // Select only necessary fields for performance
+    )
+      .sort({ name: 1 }) // Sort by name alphabetically
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
+
+    res.status(200).json({ results: users, total: users.length });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
 
