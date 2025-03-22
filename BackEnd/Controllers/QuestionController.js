@@ -103,17 +103,6 @@ exports.getQuestionById = async (req, res) => {
       return res.status(400).json({ error: "Invalid question ID format" });
     }
 
-    // const question = await Question.findById(questionId)
-    //   .populate("userId", "username name imageUrl")
-    //   .populate("tag", "tagName")
-    //   .populate({
-    //     path: "answerIds",
-    //     populate: {
-    //       path: "userId",
-    //       select: "username imageUrl",
-    //     },
-    //   });
-
     const question = await Question.findById(questionId)
   .populate("userId", "username name imageUrl") // Populates question's userId
   .populate("tag", "tagName") // Populates tag details
@@ -142,31 +131,28 @@ exports.getQuestionById = async (req, res) => {
 // Get all questions by user ID
 exports.getAllQuestionsByUsername = async (req, res) => {
   try {
-    const loginuserid=req.user.userId;
-
-    const {username}=req.params;
+    const loginuserid = req.user.userId;
+    const { username } = req.params;
+    const { page = 1, limit = 10, sort = "-createdAt" } = req.query;
 
     const user = await User.findOne({ username });
 
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+
     const userId = user._id;
-    
-    // const { userId } = req.params;
-    const { page = 1, limit = 10, sort = "-createdAt" } = req.query;
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({ error: "Invalid user ID format" });
     }
 
     const questions = await Question.find({ userId })
-      .populate("userId", "username")
+      .populate("userId", "username name imageUrl") // Now fetching name and imageUrl too
       .populate("tag", "name")
       .sort(sort)
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+      .skip((parseInt(page, 10) - 1) * parseInt(limit, 10))
+      .limit(parseInt(limit, 10));
 
     const totalQuestions = await Question.countDocuments({ userId });
 
@@ -174,8 +160,8 @@ exports.getAllQuestionsByUsername = async (req, res) => {
       message: "Questions fetched successfully",
       questions,
       totalQuestions,
-      currentPage: parseInt(page),
-      totalPages: Math.ceil(totalQuestions / limit),
+      currentPage: parseInt(page, 10),
+      totalPages: Math.ceil(totalQuestions / parseInt(limit, 10)),
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

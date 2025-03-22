@@ -1,5 +1,6 @@
 const Answer = require("../Models/Answer.js");
 const UserProfile = require("../Models/UserProfile.js");
+const User = require("../Models/User");
 const Question = require("../Models/Question.js");
 const TagDetail = require("../Models/TagDetails.js");
 const mongoose = require("mongoose");
@@ -136,6 +137,47 @@ exports.getAnswerById = async (req, res) => {
     res.status(200).json({
       message: "Answer fetched successfully",
       answer,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// get all answers by username
+exports.getAllAnswersByUsername = async (req, res) => {
+  try {
+    const { username } = req.params;
+    const { page = 1, limit = 10, sort = "-createdAt" } = req.query;
+
+    // Find user by username
+    const user = await User.findOne({ username });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const userId = user._id;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ error: "Invalid user ID format" });
+    }
+
+    // Find answers by userId
+    const answers = await Answer.find({ userId })
+      .populate("userId", "username name imageUrl") // Fetch user details
+      .populate("questionId", "title") // Fetch question title
+      .sort(sort)
+      .skip((parseInt(page, 10) - 1) * parseInt(limit, 10))
+      .limit(parseInt(limit, 10));
+
+    const totalAnswers = await Answer.countDocuments({ userId });
+
+    res.status(200).json({
+      message: "Answers fetched successfully",
+      answers,
+      totalAnswers,
+      currentPage: parseInt(page, 10),
+      totalPages: Math.ceil(totalAnswers / parseInt(limit, 10)),
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
