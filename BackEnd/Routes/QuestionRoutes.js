@@ -13,7 +13,7 @@ const {
  
 router.post("/create", authenticateUser, createQuestion);  //create question
 router.get("/getquestion/:questionId", authenticateUser, getQuestionById);
-router.post("/togglelike",authenticateUser,toggleLikeOnQuestion)    //remove like 
+router.post("/togglelikeQuestion",authenticateUser,toggleLikeOnQuestion)    //remove like 
 router.get("/tagQuestion",getQuestionsByTag); //to get all specific tag question
 router.get("/userQuestion/:username",authenticateUser, getAllQuestionsByUsername); // to view any of user's asked by username
 router.get("/allQuestions",getAllQuestions)  //retrive all questions

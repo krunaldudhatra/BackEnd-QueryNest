@@ -184,6 +184,77 @@ exports.getAllAnswersByUsername = async (req, res) => {
   }
 };
 
+// like and unlike for answer
+exports.toggleLikeOnAnswer = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const userId = req.user?.userId;
+    const { answerId, action } = req.body; // action: 'like' or 'unlike'
+
+    if (!userId || !answerId || !action) {
+      return res.status(400).json({ message: "User ID, Answer ID, and action are required" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(answerId)) {
+      return res.status(400).json({ message: "Invalid answer ID" });
+    }
+
+    const answer = await Answer.findById(answerId).session(session);
+    if (!answer) {
+      return res.status(404).json({ message: "Answer not found" });
+    }
+
+    const userProfile = await UserProfile.findOne({ userid: userId }).session(session);
+    if (!userProfile) {
+      return res.status(404).json({ message: "User profile not found" });
+    }
+
+    if (action === "like") {
+      if (answer.likes.includes(userId)) {
+        return res.status(400).json({ message: "Answer already liked" });
+      }
+
+      answer.likes.push(userId);
+      userProfile.likedAnswer = userProfile.likedAnswer || [];
+      userProfile.likedAnswer.push(answerId);
+
+    } else if (action === "unlike") {
+      if (!answer.likes.includes(userId)) {
+        return res.status(400).json({ message: "Answer not liked yet" });
+      }
+
+      answer.likes = answer.likes.filter((id) => id.toString() !== userId);
+      userProfile.likedAnswer = userProfile.likedAnswer.filter((id) => id.toString() !== answerId);
+
+    } else {
+      return res.status(400).json({ message: "Invalid action. Use 'like' or 'unlike'" });
+    }
+
+    // Update the number of likes dynamically
+    answer.noOfLikes = answer.likes.length;
+
+    await answer.save({ session });
+    await userProfile.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({ 
+      message: `Answer ${action === "like" ? "liked" : "unliked"} successfully`,
+      likes: answer.likes.length,
+      likeCount: answer.noOfLikes, // Updated like count
+      userProfileLikedAnswers: userProfile.likedAnswer || [],
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // Get answers by user ID
 exports.getAnswersByUserId = async (req, res) => {
   try {
