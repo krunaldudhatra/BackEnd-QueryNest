@@ -41,6 +41,7 @@ const UserProfileSchema = new mongoose.Schema(
         message: "You can only have up to 3 tags.",
       },
     },
+    lastTagUpdate: { type: Date, default: Date.now },
     LinkedInUrl: { type: String, sparse: true },
 
     // GitHub-related fields
@@ -87,6 +88,15 @@ const UserProfileSchema = new mongoose.Schema(
   { timestamps: true }
 );
 UserProfileSchema.index({ name: "text", username: "text", bio: "text", Graduation: "text", tags: "text" });
+
+
+// ✅ Automatically update `lastTagUpdate` when `tags` change
+UserProfileSchema.pre("save", function (next) {
+  if (this.isModified("tags")) {
+    this.lastTagUpdate = new Date();
+  }
+  next();
+});
 
 
 // Middleware to sync updates with the User schema

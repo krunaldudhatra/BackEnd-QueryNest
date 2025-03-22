@@ -3,7 +3,7 @@ const { JWT_SECRET } = process.env;
 
 exports.authenticateUser = (req, res, next) => {
   try {
-    const token = req.header("Authorization");
+     const token = req.header("Authorization");
     if (!token) {
       return res.status(401).json({ error: "Access Denied! No token provided." });
     }
@@ -11,9 +11,9 @@ exports.authenticateUser = (req, res, next) => {
     // Verify JWT token
     const decoded = jwt.verify(token.replace("Bearer ", ""), JWT_SECRET);
     req.user = { userId: decoded.userId, loginemail: decoded.email };
-
-    next(); // Proceed to next middleware/controller
+     next(); // Proceed to next middleware/controller
   } catch (err) {
+    console.log("error:"+err)
     res.status(401).json({ error: "Invalid or expired token!" });
   }
 };

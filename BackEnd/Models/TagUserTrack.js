@@ -12,7 +12,7 @@ const TagSchema = new mongoose.Schema(
     },
     users: [{
       type: mongoose.Schema.Types.ObjectId,
-      ref: "UserDetails",
+      ref: "User",
     }],
   },
   { timestamps: true }

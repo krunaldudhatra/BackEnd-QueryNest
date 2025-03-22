@@ -3,6 +3,7 @@ const UserProfile = require("../Models/UserProfile");
 const User = require("../Models/User");
 const isValidObjectId = mongoose.Types.ObjectId.isValid;
 const axios = require("axios");
+const Tag = require("../Models/TagUserTrack.js");
 
 // Function to generate avatar based on initials
 function generateImageUrl(name, color) {
@@ -180,6 +181,16 @@ exports.createUserProfile = async (req, res) => {
     const userProfile = new UserProfile(userProfileData);
     await userProfile.save({ session });
 
+    if (tags && tags.length > 0) {
+      for (const tag of tags) {
+        await Tag.findOneAndUpdate(
+          { tagName: tag }, // Check if tag exists
+          { $addToSet: { users: userid } }, // Add user if not already added
+          { upsert: true, session, new: true } // Create tag if not exists
+        );
+      }
+    }
+
     // Mark user profile as completed
     user.isProfileCompleted = true;
     await user.save({ session });
@@ -336,7 +347,6 @@ exports.searchUsers = async (req, res) => {
   }
 };
 
-
 // Delete a user Profile by ID
 exports.deleteUserProfile = async (req, res) => {
   try {
@@ -347,5 +357,83 @@ exports.deleteUserProfile = async (req, res) => {
     res.json({ message: "User deleted successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateUserTags = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { tags: newTags } = req.body;
+
+    const userProfile = await UserProfile.findOne({ userid: userId });
+
+    if (!userProfile) {
+      return res.status(404).json({ error: "User profile not found!" });
+    }
+
+    const now = new Date();
+    const currentMonth = now.getFullYear() + "-" + (now.getMonth() + 1); // Format: YYYY-M
+    const lastUpdateMonth = userProfile.lastTagUpdate
+      ? userProfile.lastTagUpdate.getFullYear() +
+        "-" +
+        (userProfile.lastTagUpdate.getMonth() + 1)
+      : null;
+
+    // ✅ Ensure updates happen only on the 1st day of the month
+    if (now.getDate() !== 1) {
+      return res.status(403).json({
+        error: "Tags can only be updated on the 1st day of each month.",
+        lastUpdate: userProfile.lastTagUpdate, // Include last update date
+      });
+    }
+
+    if (lastUpdateMonth === currentMonth) {
+      return res.status(403).json({
+        error: "You have already updated your tags this month.",
+        lastUpdate: userProfile.lastTagUpdate, // Include last update date
+      });
+    }
+
+    const oldTags = userProfile.tags || [];
+    const tagsToRemove = oldTags.filter((tag) => !newTags.includes(tag));
+    const tagsToAdd = newTags.filter((tag) => !oldTags.includes(tag));
+
+    const session = await UserProfile.startSession();
+    session.startTransaction();
+
+    try {
+      await Tag.updateMany(
+        { tagName: { $in: tagsToRemove } },
+        { $pull: { users: userId } },
+        { session }
+      );
+
+      for (const tag of tagsToAdd) {
+        await Tag.findOneAndUpdate(
+          { tagName: tag },
+          { $addToSet: { users: userId } },
+          { upsert: true, session, new: true }
+        );
+      }
+
+      userProfile.tags = newTags;
+      userProfile.lastTagUpdate = new Date();
+      await userProfile.save({ session });
+
+      await session.commitTransaction();
+      session.endSession();
+      res.json({
+        message: "Tags updated successfully!",
+        tags: newTags,
+        lastUpdate: userProfile.lastTagUpdate, // Return updated timestamp
+      });
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
+  } catch (error) {
+    console.log("Error:", error);
+    res.status(500).json({ error: "Internal server error!" });
   }
 };

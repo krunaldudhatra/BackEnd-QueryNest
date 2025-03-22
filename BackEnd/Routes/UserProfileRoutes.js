@@ -7,7 +7,8 @@ const {
   updateUserProfile,
   deleteUserProfile,
   getUserProfileByusername,
-  searchUsers
+  searchUsers,
+  updateUserTags
 } = require("../Controllers/UserProfileController");
 
 const {authenticateUser}=require("../Controllers/AuthController")
@@ -20,8 +21,9 @@ router.post("/createUserProfile",authenticateUser, createUserProfile);
 router.put("/updateUserProfile",authenticateUser, updateUserProfile);
 router.delete("/:id", deleteUserProfile);
 
+router.put("/tagchange",authenticateUser , updateUserTags);
 
 router.post("/request-backup-verification" ,authenticateUser, sendBackupEmailVerification);
-router.get("/verify-backup-email", verifyBackupEmailVerification);
+router.get("/verify-backup-email", authenticateUser , verifyBackupEmailVerification);
 
 module.exports = router;
