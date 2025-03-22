@@ -4,6 +4,7 @@ const User = require("../Models/User");
 const isValidObjectId = mongoose.Types.ObjectId.isValid;
 const axios = require("axios");
 const Tag = require("../Models/TagUserTrack.js");
+const gittoken=process.env.GIT_TOKEN;
 
 // Function to generate avatar based on initials
 function generateImageUrl(name, color) {
@@ -135,8 +136,14 @@ exports.createUserProfile = async (req, res) => {
       // Fetch GitHub Data (Public Repos & Avatar)
       try {
         const githubResponse = await axios.get(
-          `https://api.github.com/users/${githubUsername}`
+          `https://api.github.com/users/${githubUsername}`,
+          {
+            headers: {
+              Authorization: `token ${gittoken}`
+            }
+          }
         );
+        
         var githubPublicRepos = githubResponse.data.public_repos;
         var githubAvatarUrl = githubResponse.data.avatar_url;
       } catch (githubError) {
@@ -264,8 +271,14 @@ exports.updateUserProfile = async (req, res) => {
       // Fetch GitHub Data
       try {
         const githubResponse = await axios.get(
-          `https://api.github.com/users/${githubUsername}`
+          `https://api.github.com/users/${githubUsername}`,
+          {
+            headers: {
+              Authorization: `token ${gittoken}`
+            }
+          }
         );
+        
         changeableFields.useGithubAvatar = useGithubAvatar;
         changeableFields.githubPublicRepos = githubResponse.data.public_repos;
         changeableFields.githubAvatarUrl = githubResponse.data.avatar_url;

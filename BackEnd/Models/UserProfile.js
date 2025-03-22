@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const axios = require("axios");
+const gittoken=process.env.GIT_TOKEN
 
 // Function to generate a random color
 function generateRandomColor() {
@@ -121,8 +122,14 @@ UserProfileSchema.pre("save", async function (next) {
     if (this.isModified("githubUsername") && this.githubUsername) {
       try {
         const githubResponse = await axios.get(
-          `https://api.github.com/users/${this.githubUsername}`
+          `https://api.github.com/users/${githubUsername}`,
+          {
+            headers: {
+              Authorization: `token ${gittoken}`
+            }
+          }
         );
+        
         this.githubAvatarUrl = githubResponse.data.avatar_url;
         this.githubPublicRepos = githubResponse.data.public_repos;
       } catch (githubError) {
