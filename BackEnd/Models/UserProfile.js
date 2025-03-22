@@ -86,7 +86,7 @@ const UserProfileSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-UserProfileSchema.index({ name: "text", username: "text", bio: "text" });
+UserProfileSchema.index({ name: "text", username: "text", bio: "text", Graduation: "text", tags: "text" });
 
 
 // Middleware to sync updates with the User schema

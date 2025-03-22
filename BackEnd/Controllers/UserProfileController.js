@@ -320,9 +320,11 @@ exports.searchUsers = async (req, res) => {
           { name: searchRegex },
           { username: searchRegex },
           { bio: searchRegex },
+          { Graduation: searchRegex },
+          { tags: searchRegex }, // Search inside the tags array
         ],
       },
-      "userid name username bio imageUrl" // Select only necessary fields for performance
+      "userid name username bio Graduation tags imageUrl" // Include relevant fields
     )
       .sort({ name: 1 }) // Sort by name alphabetically
       .skip((page - 1) * limit)
@@ -333,6 +335,7 @@ exports.searchUsers = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
 
 // Delete a user Profile by ID
 exports.deleteUserProfile = async (req, res) => {
