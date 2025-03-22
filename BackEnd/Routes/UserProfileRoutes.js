@@ -11,7 +11,7 @@ const {
 } = require("../Controllers/UserProfileController");
 
 const {authenticateUser}=require("../Controllers/AuthController")
-const { sendBackupEmailVerification , verifyBackuEmailVerification }=require("../Controllers/BackupVerifyController");
+const { sendBackupEmailVerification, verifyBackupEmailVerification } = require("../Controllers/BackupVerifyController");
 
 router.get("/me", authenticateUser , getUserProfileById);
 router.get("/searchUser/search",authenticateUser, searchUsers);
@@ -21,7 +21,7 @@ router.put("/updateUserProfile",authenticateUser, updateUserProfile);
 router.delete("/:id", deleteUserProfile);
 
 
-router.post("/request-backup-verification" , sendBackupEmailVerification);
-router.get("/verify-backup-email", verifyBackuEmailVerification);
+router.post("/request-backup-verification" ,authenticateUser, sendBackupEmailVerification);
+router.get("/verify-backup-email", verifyBackupEmailVerification);
 
 module.exports = router;
