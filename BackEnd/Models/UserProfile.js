@@ -29,6 +29,7 @@ const UserProfileSchema = new mongoose.Schema(
     },
     clgemail: { type: String, unique: true },
     backupemail: { type: String, unique: true, sparse: true },
+    backupEmailVerified: { type: Boolean, default: false },
     name: { type: String, required: true },
     username: { type: String, required: true, unique: true },
     bio: { type: String, required: true },
