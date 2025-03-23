@@ -281,7 +281,7 @@ exports.updateUserProfile = async (req, res) => {
         
         changeableFields.useGithubAvatar = useGithubAvatar;
         changeableFields.githubPublicRepos = githubResponse.data.public_repos;
-        changeableFields.githubAvatarUrl = githubResponse.data.avatar_url;
+        changeableFields.useGithubAvatar = githubResponse.data.avatar_url;
       } catch (githubError) {
         console.error(
           "GitHub API Error:",
