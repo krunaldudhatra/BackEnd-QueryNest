@@ -119,31 +119,32 @@ UserProfileSchema.pre("save", async function (next) {
 
   try {
     // If `githubUsername` changed, fetch new avatar and repo count
-    if (this.isModified("githubUsername") && this.githubUsername) {
-      try {
-        const githubResponse = await axios.get(
-          `https://api.github.com/users/${githubUsername}`,
-          {
-            headers: {
-              Authorization: `token ${gittoken}`
-            }
-          }
-        );
-        
-        this.githubAvatarUrl = githubResponse.data.avatar_url;
-        this.githubPublicRepos = githubResponse.data.public_repos;
-      } catch (githubError) {
-        await session.abortTransaction();
-        session.endSession();
-        return next(
-          new Error(
-            `Invalid GitHub username or API request failed: ${
-              githubError.response?.data?.message || githubError.message
-            }`
-          )
-        );
+   // If `githubUsername` changed, fetch new avatar and repo count
+if (this.isModified("githubUsername") && this.githubUsername) {
+  try {
+    const githubResponse = await axios.get(
+      `https://api.github.com/users/${this.githubUsername}`,  // ✅ FIXED
+      {
+        headers: {
+          Authorization: `token ${gittoken}`
+        }
       }
-    }
+    );
+
+    this.githubAvatarUrl = githubResponse.data.avatar_url;
+    this.githubPublicRepos = githubResponse.data.public_repos;
+  } catch (githubError) {
+    await session.abortTransaction();
+    session.endSession();
+    return next(
+      new Error(
+        `Invalid GitHub username or API request failed: ${
+          githubError.response?.data?.message || githubError.message
+        }`
+      )
+    );
+  }
+ }
 
     // Ensure `imageUrl` updates correctly based on `useGithubAvatar`
     if (this.isModified("useGithubAvatar") || this.isModified("githubAvatarUrl") || this.isModified("githubUsername")) {
