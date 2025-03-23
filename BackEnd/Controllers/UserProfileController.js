@@ -307,6 +307,144 @@ exports.updateUserProfile = async (req, res) => {
   }
 };
 
+// Follow a user
+exports.followUser = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const targetUserId = req.params.id; // Fix: Use req.params.id instead of req.body
+
+    if (!mongoose.Types.ObjectId.isValid(targetUserId)) {
+      return res.status(400).json({ error: "Invalid user ID format." });
+    }
+
+    if (userId === targetUserId) {
+      return res.status(400).json({ error: "You cannot follow yourself." });
+    }
+
+    const user = await UserProfile.findOne({ userid: userId });
+    const targetUser = await UserProfile.findOne({ userid: targetUserId });
+
+    if (!user || !targetUser) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      // Add to following and followers only if not already added
+      if (!user.following.includes(targetUserId)) {
+        user.following.push(targetUserId);
+        user.noOfFollowing += 1;
+      }
+
+      if (!targetUser.followers.includes(userId)) {
+        targetUser.followers.push(userId);
+        targetUser.noOfFollowers += 1;
+      }
+
+      await user.save({ session });
+      await targetUser.save({ session });
+
+      await session.commitTransaction();
+      session.endSession();
+
+      res.json({ message: "User followed successfully!" });
+    } catch (err) {
+      await session.abortTransaction();
+      session.endSession();
+      throw err;
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Unfollow a user
+exports.unfollowUser = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const targetUserId = req.params.id; // Fix: Use req.params.id
+
+    if (!mongoose.Types.ObjectId.isValid(targetUserId)) {
+      return res.status(400).json({ error: "Invalid user ID format." });
+    }
+
+    const user = await UserProfile.findOne({ userid: userId });
+    const targetUser = await UserProfile.findOne({ userid: targetUserId });
+
+    if (!user || !targetUser) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      user.following = user.following.filter((id) => id.toString() !== targetUserId);
+      user.noOfFollowing = Math.max(0, user.noOfFollowing - 1);
+
+      targetUser.followers = targetUser.followers.filter((id) => id.toString() !== userId);
+      targetUser.noOfFollowers = Math.max(0, targetUser.noOfFollowers - 1);
+
+      await user.save({ session });
+      await targetUser.save({ session });
+
+      await session.commitTransaction();
+      session.endSession();
+
+      res.json({ message: "User unfollowed successfully!" });
+    } catch (err) {
+      await session.abortTransaction();
+      session.endSession();
+      throw err;
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+// Get followers
+exports.getFollowers = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ error: "Invalid user ID format." });
+    }
+
+    const userProfile = await UserProfile.findOne({ userid: userId }).select("followers");
+
+    if (!userProfile) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    res.json({ followers: userProfile.followers });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Get following list
+exports.getFollowing = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ error: "Invalid user ID format." });
+    }
+
+    const userProfile = await UserProfile.findOne({ userid: userId }).select("following");
+
+    if (!userProfile) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    res.json({ following: userProfile.following });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 //search by name and username
 exports.searchUsers = async (req, res) => {
   try {

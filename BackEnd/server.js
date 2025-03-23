@@ -34,7 +34,7 @@ server.use("/api/Question", QuestionRoutes);
 server.use("/api/Pointcalculation", PointCalculationRoutes);
 server.use("/api/TagUserTrack", TagUseTrackRoutes);
 server.use("/api/TagDetails", TagDetailsRoutes);
-server.use("/api/OverallLeaderBoard", OverallLeaderBoardRoutes);
+server.use("/api/LeaderBoard", OverallLeaderBoardRoutes);
 server.use("/api/TagLeaderBoard", TagLeaderBoardRoutes);
 
 // MongoDB Connection

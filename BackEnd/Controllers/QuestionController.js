@@ -267,52 +267,50 @@ exports.getQuestionsBySenderAndTagMatch = async (req, res) => {
 
     const { page = 1, limit = 10, sort = "-createdAt" } = req.query;
 
-    // Find the sender's profile and their tags
-    const senderProfile = await UserProfile.findOne({ userid: userId }).select("name tags");
-    console.log("senderProfile:::"+senderProfile)
- 
-    if (!senderProfile || !senderProfile.tags || senderProfile.tags.length == 0) {
-      return res.status(404).json({ message: "Sender profile or tags not found" });
+    // Fetch sender's profile (tags + following list)
+    const senderProfile = await UserProfile.findOne({ userid: userId }).select("name tags following");
+
+    if (!senderProfile) {
+      return res.status(404).json({ message: "Sender profile not found" });
     }
 
-    const senderTagNames = senderProfile.tags;
-    console.log("Sender Tags:", senderTagNames);
+    const senderTagNames = senderProfile.tags || [];
+    const followingUserIds = senderProfile.following || [];
 
-    // Find tag IDs for the sender's tags
+    // Fetch matching tag IDs
     const tagDetails = await TagDetails.find({ tagName: { $in: senderTagNames } });
-    if (!tagDetails || tagDetails.length === 0) {
-      return res.status(404).json({ message: "Matching tags not found in TagDetail collection" });
-    }
-
     const senderTagIds = tagDetails.map(tag => tag._id);
-    console.log("Sender Tag IDs:", senderTagIds);
 
-    // Find questions and populate userId with imageUrl
-    const questions = await Question.find({ 
-      tag: { $in: senderTagIds },
-      userId: { $ne: null },
+    // Fetch questions that match either the sender's tags or are posted by users they follow
+    const questions = await Question.find({
+      $or: [
+        { tag: { $in: senderTagIds } },
+        { userId: { $in: followingUserIds } }
+      ]
     })
       .populate("userId", "username name imageUrl")
       .populate("tag", "tagName")
       .sort(sort)
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
-    
-    
-    const totalQuestions = await Question.countDocuments({ 
-      tag: { $in: senderTagIds },
-      userId: { $ne: null },
+
+    // Get total count for pagination
+    const totalQuestions = await Question.countDocuments({
+      $or: [
+        { tag: { $in: senderTagIds } },
+        { userId: { $in: followingUserIds } }
+      ]
     });
-    console.log("Total matched questions:", totalQuestions);
 
     res.status(200).json({
-      message: "Questions fetched successfully with matching tags",
+      message: "Questions fetched successfully with matching tags and following users",
       senderName: senderProfile.name,
       questions,
       totalQuestions,
       currentPage: parseInt(page),
       totalPages: Math.ceil(totalQuestions / limit),
     });
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
