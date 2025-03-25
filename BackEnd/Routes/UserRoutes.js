@@ -20,7 +20,6 @@ const {
 
 const {authenticateUser}=require("../Controllers/AuthController")
 
-
 router.post("/register", registerUser);
 router.post("/verify-otp", verifyOTP);
 router.post("/resend-otp", resendOTP);
