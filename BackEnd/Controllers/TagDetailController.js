@@ -1,5 +1,5 @@
 const TagDetail = require("../Models/TagDetails");
-const createLeaderboardModel = require("../Models/LeaderBoard");
+const createLeaderboardModel = require("../Models/Leaderboard");
 
 // Create tag detail
 exports.createTagDetail = async (req, res) => {
@@ -22,39 +22,17 @@ exports.createTagDetail = async (req, res) => {
     const newTag = new TagDetail({ tagName, tagPoint });
     await newTag.save();
 
-    try {
-      // Create the leaderboard for the tag
-      const Leaderboard = createLeaderboardModel(tagName);
-      const tagLeaderBoard = await Leaderboard.create({
-        time: {
-          month: new Date().getMonth() + 1,
-          year: new Date().getFullYear(),
-        },
-        users: [],
+    res
+      .status(201)
+      .json({
+        message: "Tag created successfully",
+        tag: newTag,
       });
 
-      res
-        .status(201)
-        .json({
-          message: "Tag and leaderboard created successfully",
-          tag: newTag,
-          tagLeaderBoard: tagLeaderBoard,
-        });
-    } catch (leaderboardError) {
-      // Rollback: Delete the tag if leaderboard creation fails
-      await TagDetail.findByIdAndDelete(newTag._id);
-      return res
-        .status(500)
-        .json({
-          error: "Failed to create leaderboard. Tag creation rolled back.",
-          details: leaderboardError.message,
-        });
-    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
 exports.getAllTagDetails = async (req, res) => {
   try {
     const tags = await TagDetail.find({}, "tagName"); // Only fetch tagName field
