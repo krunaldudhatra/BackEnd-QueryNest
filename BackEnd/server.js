@@ -15,7 +15,7 @@ const QuestionRoutes = require("./Routes/QuestionRoutes");
 const PointCalculationRoutes = require("./Routes/PointCalculationRoutes");
 const TagUseTrackRoutes = require("./Routes/TagUserTrackRoutes");
 const TagDetailsRoutes = require("./Routes/TagDetailsRoutes");
-const OverallLeaderBoardRoutes = require("./Routes/OverallLeaderBoardRoutes");
+const LeaderBoardRoutes = require("./Routes/LeaderBoardRoutes");
 const TagLeaderBoardRoutes = require("./Routes/TagLeaderBoardRoutes");
 
 server.use(
@@ -34,7 +34,7 @@ server.use("/api/Question", QuestionRoutes);
 server.use("/api/Pointcalculation", PointCalculationRoutes);
 server.use("/api/TagUserTrack", TagUseTrackRoutes);
 server.use("/api/TagDetails", TagDetailsRoutes);
-server.use("/api/LeaderBoard", OverallLeaderBoardRoutes);
+server.use("/api/LeaderBoard", LeaderBoardRoutes);
 server.use("/api/TagLeaderBoard", TagLeaderBoardRoutes);
 
 // MongoDB Connection
