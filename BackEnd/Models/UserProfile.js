@@ -43,7 +43,12 @@ const UserProfileSchema = new mongoose.Schema(
       },
     },
     lastTagUpdate: { type: Date, default: Date.now },
-    LinkedInUrl: { type: String, sparse: true },
+    LinkedInUrl: { 
+      type: String, 
+      sparse: true, 
+      set: v => v === "" ? null : v // Prevents empty strings from being stored
+    },
+    
 
     // GitHub-related fields
     githubUsername: { type: String, unique: true, sparse: true },
