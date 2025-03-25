@@ -308,3 +308,59 @@ exports.deleteAnswer = async (req, res) => {
 module.exports = exports;
 
 // Let me know if you want any adjustments or more features! 🚀
+
+exports.rateAnswer = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { answerId, rating } = req.body;
+    const userId = req.user.userId;
+
+    if (!mongoose.Types.ObjectId.isValid(answerId) || rating < 0 || rating > 5) {
+      return res.status(400).json({ error: "Invalid answer ID or rating out of range (0-5)." });
+    }
+
+    const answer = await Answer.findById(answerId).session(session);
+    if (!answer) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ error: "Answer not found." });
+    }
+
+    const userProfile = await UserProfile.findOne({ userid: answer.userId }).session(session);
+    if (!userProfile) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ error: "User profile not found." });
+    }
+
+    // Maintain an array of ratings (max length 5)
+    answer.ratingArray = answer.ratingArray || [];
+    if (answer.ratingArray.length >= 5) {
+      answer.ratingArray.shift(); // Remove the oldest rating
+    }
+    answer.ratingArray.push(rating);
+    answer.rating = answer.ratingArray.reduce((a, b) => a + b, 0) / answer.ratingArray.length;
+    await answer.save({ session });
+
+    // Update user’s avgRating based on all their answers
+    const userAnswers = await Answer.find({ userId: answer.userId }).session(session);
+    const totalRatings = userAnswers.reduce((sum, ans) => sum + (ans.rating || 0), 0);
+    userProfile.avgRating = totalRatings / userAnswers.length;
+    await userProfile.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      message: "Answer rated successfully",
+      updatedRating: answer.rating,
+      userAvgRating: userProfile.avgRating,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    res.status(500).json({ error: error.message });
+  }
+};
