@@ -29,14 +29,17 @@ exports.getAllUserProfile = async (req, res) => {
 };
 
 // get user Profile by UserName
-exports.getUserProfileByUsername = async (req, res) => {
+exports.getUserProfileByusername = async (req, res) => {
   try {
     const username = req.params.username;
 
-    // Find the user profile by username and include the `userid`
+    // Find the user by username
+    // const userProfile = await UserProfile.findOne({ username });
+
+    // Find the user profile by username and select only the required fields
     const userProfile = await UserProfile.findOne({ username })
       .select(
-        "userid name bio username tags LinkedInUrl githubUsername noOfQuestions Graduation noOfAnswers totalPoints questionIds answerIds achievements followers following noOfFollowers noOfFollowing imageUrl"
+        "userid name bio username tags LinkedInUrl Githubusername noOfQuestions Graduation noOfAnswers avgRating totalPoints questionIds answerIds achievements followers following noOfFollowers noOfFollowing imageUrl"
       )
       .lean(); // Use lean() for a plain JavaScript object (better performance)
 
@@ -45,13 +48,15 @@ exports.getUserProfileByUsername = async (req, res) => {
       return res.status(404).json({ message: "User Profile not found" });
     }
 
-    // Send the user profile with userid
-    res.status(200).json(userProfile);
+    // Destructure and exclude the _id field
+    const { _id, ...userProfileWithoutId } = userProfile;
+
+    // Send the filtered user profile
+    res.status(200).json(userProfileWithoutId);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 // Get a single user Profile by ID
 exports.getUserProfileById = async (req, res) => {
