@@ -7,7 +7,6 @@ const UserSchema = new mongoose.Schema(
     clgemail: { type: String, required: true, unique: true },
     backupemail: { type: String, unique: true, sparse: true },
     password: { type: String, required: true },
-    verified: { type: Boolean, default: false },
     isProfileCompleted: { type: Boolean, default: false },
 
     imageUrl: { type: String }, // Updated from UserProfile
