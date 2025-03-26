@@ -15,7 +15,7 @@ function generateImageUrl(name) {
     words.length >= 2
       ? words[0][0].toUpperCase() + words[1][0].toUpperCase()
       : words[0][0].toUpperCase();
-  
+
   const randomColor = generateRandomColor();
   return `https://ui-avatars.com/api/?name=${initials}&background=${randomColor}&color=fff`;
 }
@@ -43,12 +43,12 @@ const UserProfileSchema = new mongoose.Schema(
       },
     },
     lastTagUpdate: { type: Date, default: Date.now },
-    LinkedInUrl: { 
-      type: String, 
-      sparse: true, 
+    LinkedInUrl: {
+      type: String,
+      sparse: true,
       set: v => v === "" ? null : v // Prevents empty strings from being stored
     },
-    
+
 
     // GitHub-related fields
     githubUsername: { type: String, unique: true, sparse: true },
@@ -70,12 +70,7 @@ const UserProfileSchema = new mongoose.Schema(
     noOfQuestions: { type: Number, default: 0 },
     Graduation: { type: String },
     noOfAnswers: { type: Number, default: 0 },
-    avgRating: {
-      type: Number,
-      default: 0,
-      min: [0, "Rating cannot be negative."],
-      max: [5, "Rating cannot be greater than 5."],
-    },
+
     totalPoints: {
       type: Number,
       default: 0,
