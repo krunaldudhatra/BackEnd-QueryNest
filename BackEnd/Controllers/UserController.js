@@ -94,7 +94,6 @@ exports.verifyOTP = async (req, res) => {
 
         // Find user in Temp schema
         const tempUser = await Temp.findOne({ clgemail });
-
         if (!tempUser) return res.status(404).json({ error: "User not found!" });
 
         // Check OTP and expiration
@@ -110,10 +109,12 @@ exports.verifyOTP = async (req, res) => {
             password: tempUser.password,
             isProfileCompleted: false,
         });
+            console.log("hello");
+      await newUser.save();
+            console.log("hello");
 
-        await newUser.save();
+      // ✅ Create a UserProfile for the newly registered user
 
-        // ✅ Create a UserProfile for the newly registered user
         const newUserProfile = new UserProfile({
             userid: newUser._id,
             clgemail: newUser.clgemail,
@@ -124,6 +125,8 @@ exports.verifyOTP = async (req, res) => {
             githubUsername: null,
             imageUrl: generateImageUrl(newUser.name), // Default avatar
         });
+      console.log("newUserProfile", newUserProfile)
+      console.log("hello")
 
         await newUserProfile.save();
 
@@ -141,7 +144,7 @@ exports.verifyOTP = async (req, res) => {
 
         res.status(200).json({ message: "Registration successful!" });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+       res.status(500).json({ error: err.message , hello: "errrrrror"});
     }
 };
 
