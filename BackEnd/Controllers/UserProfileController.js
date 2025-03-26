@@ -176,7 +176,7 @@ exports.createUserProfile = async (req, res) => {
       LinkedInUrl,
       avatarColor,
       useGithubAvatar: !!useGithubAvatar,
-      githubUsername,
+       githubUsername: githubUsername || undefined,
       githubPublicRepos: githubPublicRepos || 0,
       githubAvatarUrl: githubAvatarUrl || "",
       Graduation,
