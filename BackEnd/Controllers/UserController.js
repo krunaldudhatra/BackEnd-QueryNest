@@ -10,7 +10,6 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN;
 const EMAIL_PASS = process.env.EMAIL_PASS;
 const EMAIL_USER = process.env.EMAIL_USER;
-
 // Configure Nodemailer
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -90,63 +89,47 @@ exports.registerUser = async (req, res) => {
 // Verify OTP
 exports.verifyOTP = async (req, res) => {
     try {
-        const { clgemail, otp } = req.body;
+      const { clgemail, otp } = req.body;
 
-        // Find user in Temp schema
-        const tempUser = await Temp.findOne({ clgemail });
-        if (!tempUser) return res.status(404).json({ error: "User not found!" });
+      // Find user in Temp schema
+      const tempUser = await Temp.findOne({ clgemail });
 
-        // Check OTP and expiration
-        if (tempUser.otp !== otp || tempUser.otpExpires < new Date()) {
-            return res.status(400).json({ error: "Invalid or expired OTP!" });
-        }
+      if (!tempUser) return res.status(404).json({ error: "User not found!" });
 
-        // Create a new user in the User schema
-        const newUser = new User({
-            name: tempUser.name,
-            username: tempUser.username,
-            clgemail: tempUser.clgemail,
-            password: tempUser.password,
-            isProfileCompleted: false,
-        });
-            console.log("hello");
+      // Check OTP and expiration
+      if (tempUser.otp !== otp || tempUser.otpExpires < new Date()) {
+        return res.status(400).json({ error: "Invalid or expired OTP!" });
+      }
+
+      // Create a new user in the User schema
+      const newUser = new User({
+        name: tempUser.name,
+        username: tempUser.username,
+        clgemail: tempUser.clgemail,
+        password: tempUser.password,
+        verified: true, // Mark as verified
+      });
+
       await newUser.save();
-            console.log("hello");
 
-      // ✅ Create a UserProfile for the newly registered user
+      // Remove the user from Temp schema
+      await Temp.deleteOne({ clgemail });
 
-        const newUserProfile = new UserProfile({
-            userid: newUser._id,
-            clgemail: newUser.clgemail,
-            name: newUser.name,
-            username: newUser.username,
-            bio: "This is my bio", // Provide a default value
-            tags: [],  // Default empty array
-            githubUsername: null,
-            imageUrl: generateImageUrl(newUser.name), // Default avatar
-        });
-      console.log("newUserProfile", newUserProfile)
-      console.log("hello")
+      // Send confirmation email
+      await transporter.sendMail({
+        from: EMAIL_USER,
+        to: clgemail,
+        subject: "Registration Successful 🎉",
+        html: `<h1>Congratulations, ${tempUser.name}!</h1>
+                     <p>Your registration is complete. Welcome to our platform! 🎉</p>`,
+      });
 
-        await newUserProfile.save();
-
-        // Remove the user from Temp schema
-        await Temp.deleteOne({ clgemail });
-
-        // Send confirmation email
-        await transporter.sendMail({
-            from: EMAIL_USER,
-            to: clgemail,
-            subject: "Registration Successful 🎉",
-            html: `<h1>Congratulations, ${tempUser.name}!</h1>
-                   <p>Your registration is complete. Welcome to our platform! 🎉</p>`,
-        });
-
-        res.status(200).json({ message: "Registration successful!" });
+      res.status(200).json({ message: "Registration successful!" });
     } catch (err) {
-       res.status(500).json({ error: err.message , hello: "errrrrror"});
+      res.status(500).json({ error: err.message });
     }
-};
+  };
+
 
 // Resend OTP
 exports.resendOTP = async (req, res) => {
