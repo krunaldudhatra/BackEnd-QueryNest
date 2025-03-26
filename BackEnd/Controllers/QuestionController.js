@@ -23,7 +23,7 @@ exports.createQuestion = async (req, res) => {
       session.endSession();
       return res.status(404).json({ error: "Tag not found" });
     }
-    
+
 
     console.log(tagName);
     console.log(tag);
@@ -70,7 +70,8 @@ exports.createQuestion = async (req, res) => {
 // Get all questions
 exports.getAllQuestions = async (req, res) => {
   try {
-    const { page = 1, limit = 10, sort = "-createdAt", tag } = req.query;
+    const { page = 1, limit = 25, sort = "-createdAt", tag } = req.query;
+
 
     const query = tag ? { tag } : {};
 
@@ -133,7 +134,8 @@ exports.getAllQuestionsByUsername = async (req, res) => {
   try {
     const loginuserid = req.user.userId;
     const { username } = req.params;
-    const { page = 1, limit = 10, sort = "-createdAt" } = req.query;
+    const { page = 1, limit = 25, sort = "-createdAt", tag } = req.query;
+
 
     const user = await User.findOne({ username });
 
@@ -240,7 +242,7 @@ exports.toggleLikeOnQuestion = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    res.status(200).json({ 
+    res.status(200).json({
       message: `Question ${action === "like" ? "liked" : "unliked"} successfully`,
       likes: question.likes.length,
       likeCount: question.likes.length, // Update like count directly
@@ -265,7 +267,8 @@ exports.getQuestionsBySenderAndTagMatch = async (req, res) => {
       return res.status(400).json({ message: "Invalid user ID format" });
     }
 
-    const { page = 1, limit = 10, sort = "-createdAt" } = req.query;
+    const { page = 1, limit = 25, sort = "-createdAt", tag } = req.query;
+
 
     // Fetch sender's profile (tags + following list)
     const senderProfile = await UserProfile.findOne({ userid: userId }).select("name tags following");
