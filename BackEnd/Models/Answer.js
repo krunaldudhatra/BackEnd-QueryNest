@@ -34,7 +34,7 @@ const AnswerSchema = new mongoose.Schema(
         rating: { type: Number, min: 0, max: 5 },
       }
     ],
-    rating: { type: Number, default: 0 }, // Average rating
+    rating: { type: Number, default: null}, // Average rating
 
     point: { type: Number, default: 0 },
   },
