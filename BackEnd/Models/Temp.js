@@ -10,7 +10,7 @@ const TempSchema = new mongoose.Schema(
 
     otp: { type: String },
     otpExpires: { type: Date },
-    verified: { type: Boolean, default: false }, // Track verification status
+   
 
     resetPasscode: { type: String },
     resetPasscodeExpires: { type: Date },
