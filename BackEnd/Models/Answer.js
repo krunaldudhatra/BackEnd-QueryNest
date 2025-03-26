@@ -28,7 +28,14 @@ const AnswerSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    rating: { type: Number, default: 0 },
+   ratings: [
+      {
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        rating: { type: Number, min: 0, max: 5 },
+      }
+    ],
+    rating: { type: Number, default: 0 }, // Average rating
+
     point: { type: Number, default: 0 },
   },
   { timestamps: true }
