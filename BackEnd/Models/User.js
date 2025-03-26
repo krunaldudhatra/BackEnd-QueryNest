@@ -16,7 +16,13 @@ const UserSchema = new mongoose.Schema(
 
 // Middleware to sync updates from UserProfile → User
 UserSchema.pre("save", async function (next) {
-  if (!this.isModified("name") && !this.isModified("username") && !this.isModified("clgemail") && !this.isModified("backupemail") && !this.isModified("imageUrl")) {
+  if (
+    !this.isModified("name") &&
+    !this.isModified("username") &&
+    !this.isModified("clgemail") &&
+    !this.isModified("backupemail") &&
+    !this.isModified("imageUrl")
+  ) {
     return next();
   }
 
@@ -24,13 +30,17 @@ UserSchema.pre("save", async function (next) {
   session.startTransaction();
 
   try {
-    // Ensure UserProfile exists
+    // ✅ Find the corresponding UserProfile
     const userProfile = await mongoose.model("UserProfile").findOne({ userid: this._id });
+
     if (!userProfile) {
-      throw new Error("UserProfile not found for this user.");
+      console.log(`⚠️ No UserProfile found for User ID: ${this._id}`);
+      return next(); // Continue saving the User even if the profile does not exist
     }
 
-    // Update User fields based on UserProfile changes
+    console.log(`✅ Updating User fields from UserProfile for User ID: ${this._id}`);
+
+    // ✅ Update User fields based on UserProfile
     this.name = userProfile.name;
     this.username = userProfile.username;
     this.clgemail = userProfile.clgemail;
@@ -39,10 +49,14 @@ UserSchema.pre("save", async function (next) {
 
     await session.commitTransaction();
     session.endSession();
+
+    console.log(`🎉 User fields successfully updated from UserProfile for User ID: ${this._id}`);
+
     next();
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
+    console.error(`❌ Error updating User fields: ${error.message}`);
     next(error);
   }
 });
