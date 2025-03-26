@@ -241,7 +241,7 @@ exports.toggleLikeOnAnswer = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    res.status(200).json({ 
+    res.status(200).json({
       message: `Answer ${action === "like" ? "liked" : "unliked"} successfully`,
       likes: answer.likes.length,
       likeCount: answer.noOfLikes, // Updated like count
@@ -305,62 +305,61 @@ exports.deleteAnswer = async (req, res) => {
   }
 };
 
-module.exports = exports;
-
-// Let me know if you want any adjustments or more features! 🚀
-
 exports.rateAnswer = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
+    const userId = req.user?.userId; // Authenticated user's ID
     const { answerId, rating } = req.body;
-    const userId = req.user.userId;
 
-    if (!mongoose.Types.ObjectId.isValid(answerId) || rating < 0 || rating > 5) {
-      return res.status(400).json({ error: "Invalid answer ID or rating out of range (0-5)." });
+    if (!userId || !answerId || rating === undefined) {
+      return res.status(400).json({ message: "User ID, Answer ID, and rating are required." });
     }
 
-    const answer = await Answer.findById(answerId).session(session);
+    if (!mongoose.Types.ObjectId.isValid(answerId)) {
+      return res.status(400).json({ message: "Invalid answer ID." });
+    }
+
+    if (rating < 0 || rating > 5) {
+      return res.status(400).json({ message: "Rating must be between 0 and 5." });
+    }
+
+    const answer = await Answer.findById(answerId);
     if (!answer) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(404).json({ error: "Answer not found." });
+      return res.status(404).json({ message: "Answer not found." });
     }
 
-    const userProfile = await UserProfile.findOne({ userid: answer.userId }).session(session);
-    if (!userProfile) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(404).json({ error: "User profile not found." });
+    // Ensure ratings array exists
+    if (!Array.isArray(answer.ratings)) {
+      answer.ratings = [];
     }
 
-    // Maintain an array of ratings (max length 5)
-    answer.ratingArray = answer.ratingArray || [];
-    if (answer.ratingArray.length >= 5) {
-      answer.ratingArray.shift(); // Remove the oldest rating
+    // Check if user has already rated the answer
+    let userRating = answer.ratings.find(r => r.userId.toString() === userId);
+
+    if (userRating) {
+      // Update existing rating
+      userRating.rating = rating;
+    } else {
+      // Add new rating
+      answer.ratings.push({ userId, rating });
     }
-    answer.ratingArray.push(rating);
-    answer.rating = answer.ratingArray.reduce((a, b) => a + b, 0) / answer.ratingArray.length;
-    await answer.save({ session });
 
-    // Update user’s avgRating based on all their answers
-    const userAnswers = await Answer.find({ userId: answer.userId }).session(session);
-    const totalRatings = userAnswers.reduce((sum, ans) => sum + (ans.rating || 0), 0);
-    userProfile.avgRating = totalRatings / userAnswers.length;
-    await userProfile.save({ session });
+    // Calculate new average rating
+    const totalRatings = answer.ratings.length;
+    const sumRatings = answer.ratings.reduce((sum, r) => sum + r.rating, 0);
+    answer.rating = sumRatings / totalRatings;
 
-    await session.commitTransaction();
-    session.endSession();
+    await answer.save();
 
     res.status(200).json({
-      message: "Answer rated successfully",
+      message: "Answer rated successfully.",
       updatedRating: answer.rating,
-      userAvgRating: userProfile.avgRating,
     });
+
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     res.status(500).json({ error: error.message });
   }
 };
+
+module.exports = exports;
+
+
