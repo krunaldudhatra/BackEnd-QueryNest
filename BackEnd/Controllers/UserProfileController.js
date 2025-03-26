@@ -468,7 +468,7 @@ exports.searchUsers = async (req, res) => {
           { tags: searchRegex }, // Search inside the tags array
         ],
       },
-      "userid name username bio Graduation tags imageUrl" // Include relevant fields
+      "userid name username bio Graduation tags imageUrl totalPoints" // Include relevant fields
     )
       .sort({ name: 1 }) // Sort by name alphabetically
       .skip((page - 1) * limit)
