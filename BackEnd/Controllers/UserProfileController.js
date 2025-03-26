@@ -143,7 +143,7 @@ exports.createUserProfile = async (req, res) => {
             }
           }
         );
-        
+
         var githubPublicRepos = githubResponse.data.public_repos;
         var githubAvatarUrl = githubResponse.data.avatar_url;
       } catch (githubError) {
@@ -222,88 +222,108 @@ exports.updateUserProfile = async (req, res) => {
   session.startTransaction();
 
   try {
-      const userid = req.user.userId;
-      if (!userid) return res.status(400).json({ error: "User ID is required." });
+    const userid = req.user.userId;
+    if (!userid) return res.status(400).json({ error: "User ID is required." });
 
-      const {
-          name,
-          bio,
-          LinkedInUrl,
-          githubUsername,
-          Graduation,
-          useGithubAvatar,
-          githubAvatarUrl
-      } = req.body;
+    const {
+      name,
+      username,  // ✅ Added username update
+      bio,
+      LinkedInUrl,
+      githubUsername,
+      Graduation,
+      useGithubAvatar,
+      githubAvatarUrl
+    } = req.body;
 
-      console.log("Received githubUsername:", githubUsername);
+    console.log("Received username:", username);
+    console.log("Received githubUsername:", githubUsername);
 
-      if (!gittoken) {
-          console.error("GitHub token is missing!");
-          return res.status(500).json({ error: "GitHub authentication token is missing." });
+    if (!gittoken) {
+      console.error("GitHub token is missing!");
+      return res.status(500).json({ error: "GitHub authentication token is missing." });
+    }
+
+    const changeableFields = {
+      name,
+      username,  // ✅ Include username in changeable fields
+      bio,
+      LinkedInUrl,
+      githubUsername,
+      Graduation,
+      useGithubAvatar,
+      githubAvatarUrl
+    };
+
+    // Remove undefined fields
+    Object.keys(changeableFields).forEach((key) => {
+      if (changeableFields[key] === undefined) delete changeableFields[key];
+    });
+
+    if (Object.keys(changeableFields).length === 0) {
+      return res.status(400).json({ error: "No valid fields to update." });
+    }
+
+    // Check if the new username is already taken
+    if (username) {
+      const existingUser = await UserProfile.findOne({ username }).session(session);
+      if (existingUser && existingUser.userid.toString() !== userid.toString()) {
+        return res.status(400).json({ error: "Username already exists." });
       }
+    }
 
-      const changeableFields = {
-          name,
-          bio,
-          LinkedInUrl,
-          githubUsername,
-          Graduation,
-          useGithubAvatar,
-          githubAvatarUrl
-      };
+    const userProfile = await UserProfile.findOne({ userid }).session(session);
+    if (!userProfile) {
+      return res.status(404).json({ error: "User profile not found." });
+    }
 
-      Object.keys(changeableFields).forEach((key) => {
-          if (changeableFields[key] === undefined) delete changeableFields[key];
-      });
+    // Handle GitHub username update
+    if (githubUsername && githubUsername !== userProfile.githubUsername) {
+      console.log(`Fetching GitHub data for username: ${githubUsername}`);
 
-      if (Object.keys(changeableFields).length === 0) {
-          return res.status(400).json({ error: "No valid fields to update." });
-      }
-
-      const userProfile = await UserProfile.findOne({ userid }).session(session);
-      if (!userProfile) {
-          return res.status(404).json({ error: "User profile not found." });
-      }
-
-      if (githubUsername && typeof githubUsername === "string" && githubUsername.trim() !== "" && githubUsername !== userProfile.githubUsername) {
-          console.log(`Fetching GitHub data for username: ${githubUsername}`);
-
-          try {
-              const githubResponse = await axios.get(
-                  `https://api.github.com/users/${githubUsername}`,
-                  {
-                      headers: { Authorization: `token ${gittoken}` }
-                  }
-              );
-
-              console.log("GitHub API Response:", githubResponse.data);
-
-              changeableFields.githubPublicRepos = githubResponse.data.public_repos;
-              changeableFields.githubAvatarUrl = githubResponse.data.avatar_url;
-          } catch (githubError) {
-              console.error("GitHub API Error Response:", githubError.response?.data || githubError.message);
-
-              return res.status(400).json({
-                  error: "Invalid GitHub username or API request failed.",
-                  details: githubError.response?.data?.message || githubError.message,
-              });
+      try {
+        const githubResponse = await axios.get(
+          `https://api.github.com/users/${githubUsername}`,
+          {
+            headers: { Authorization: `token ${gittoken}` }
           }
+        );
+
+        console.log("GitHub API Response:", githubResponse.data);
+
+        changeableFields.githubPublicRepos = githubResponse.data.public_repos;
+        changeableFields.githubAvatarUrl = githubResponse.data.avatar_url;
+      } catch (githubError) {
+        console.error("GitHub API Error Response:", githubError.response?.data || githubError.message);
+
+        return res.status(400).json({
+          error: "Invalid GitHub username or API request failed.",
+          details: githubError.response?.data?.message || githubError.message,
+        });
       }
+    }
 
-      Object.assign(userProfile, changeableFields);
-      await userProfile.save({ session });
+    Object.assign(userProfile, changeableFields);
+    await userProfile.save({ session });
 
-      await session.commitTransaction();
-      session.endSession();
+    // ✅ Also update `User` schema with new username & name
+    await mongoose.model("User").findByIdAndUpdate(
+      userid,
+      { name: userProfile.name, username: userProfile.username },
+      { session }
+    );
 
-      const { _id, ...profileWithoutId } = userProfile.toObject();
-      res.json({ message: "Profile updated successfully", userProfile: profileWithoutId });
+    await session.commitTransaction();
+    session.endSession();
+
+    const { _id, ...profileWithoutId } = userProfile.toObject();
+    res.json({ message: "Profile updated successfully", userProfile: profileWithoutId });
 
   } catch (err) {
-      await session.abortTransaction();
-      session.endSession();
-      console.error("Update profile error:", err);
-      res.status(500).json({ error: err.message });
+    await session.abortTransaction();
+    session.endSession();
+    console.error("Update profile error:", err);
+    res.status(500).json({ error: err.message });
   }
 };
 
