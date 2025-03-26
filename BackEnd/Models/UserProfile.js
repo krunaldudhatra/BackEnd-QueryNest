@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const axios = require("axios");
-const gittoken=process.env.GIT_TOKEN
+const gittoken = process.env.GIT_TOKEN;
 
 // Function to generate a random color
 function generateRandomColor() {
@@ -30,7 +30,7 @@ const UserProfileSchema = new mongoose.Schema(
     },
     clgemail: { type: String, unique: true },
     backupemail: { type: String, unique: true, sparse: true },
-     name: { type: String, required: true },
+    name: { type: String, required: true },
     username: { type: String, required: true, unique: true },
     bio: { type: String, required: true },
     tags: {
@@ -46,12 +46,19 @@ const UserProfileSchema = new mongoose.Schema(
     LinkedInUrl: {
       type: String,
       sparse: true,
-      set: v => v === "" ? null : v // Prevents empty strings from being stored
+      set: (v) => (v === "" ? undefined : v), // Prevent storing empty strings
     },
 
-
     // GitHub-related fields
-    githubUsername: { type: String, unique: true, sparse: true },
+  githubUsername: {
+  type: String,
+  unique: true,
+  sparse: true,  // ✅ Allows multiple documents without githubUsername
+  default: undefined,
+  set: (v) => (!v || v === "" ? undefined : v), // ✅ Prevents storing `null`
+},
+
+
     githubPublicRepos: { type: Number, default: 0 },
     githubAvatarUrl: { type: String, default: "" },
     useGithubAvatar: { type: Boolean, default: false },
@@ -88,16 +95,31 @@ const UserProfileSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-UserProfileSchema.index({ name: "text", username: "text", bio: "text", Graduation: "text", tags: "text" });
 
+UserProfileSchema.index({
+  name: "text",
+  username: "text",
+  bio: "text",
+  Graduation: "text",
+  tags: "text",
+});
 
 // ✅ Automatically update `lastTagUpdate` when `tags` change
 UserProfileSchema.pre("save", function (next) {
   if (this.isModified("tags")) {
     this.lastTagUpdate = new Date();
   }
+
   next();
 });
+UserProfileSchema.pre("validate", function (next) {
+  if (!this.githubUsername) {
+    delete this.githubUsername; // ✅ Removes the field if empty
+  }
+  next();
+});
+
+
 
 
 // Middleware to sync updates with the User schema
@@ -119,32 +141,31 @@ UserProfileSchema.pre("save", async function (next) {
 
   try {
     // If `githubUsername` changed, fetch new avatar and repo count
-   // If `githubUsername` changed, fetch new avatar and repo count
-if (this.isModified("githubUsername") && this.githubUsername) {
-  try {
-    const githubResponse = await axios.get(
-      `https://api.github.com/users/${this.githubUsername}`,  // ✅ FIXED
-      {
-        headers: {
-          Authorization: `token ${gittoken}`
-        }
-      }
-    );
+    if (this.isModified("githubUsername") && this.githubUsername) {
+      try {
+        const githubResponse = await axios.get(
+          `https://api.github.com/users/${this.githubUsername}`,
+          {
+            headers: {
+              Authorization: `token ${gittoken}`,
+            },
+          }
+        );
 
-    this.githubAvatarUrl = githubResponse.data.avatar_url;
-    this.githubPublicRepos = githubResponse.data.public_repos;
-  } catch (githubError) {
-    await session.abortTransaction();
-    session.endSession();
-    return next(
-      new Error(
-        `Invalid GitHub username or API request failed: ${
-          githubError.response?.data?.message || githubError.message
-        }`
-      )
-    );
-  }
- }
+        this.githubAvatarUrl = githubResponse.data.avatar_url;
+        this.githubPublicRepos = githubResponse.data.public_repos;
+      } catch (githubError) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(
+          new Error(
+            `Invalid GitHub username or API request failed: ${
+              githubError.response?.data?.message || githubError.message
+            }`
+          )
+        );
+      }
+    }
 
     // Ensure `imageUrl` updates correctly based on `useGithubAvatar`
     if (this.isModified("useGithubAvatar") || this.isModified("githubAvatarUrl") || this.isModified("githubUsername")) {
