@@ -218,114 +218,125 @@ exports.createUserProfile = async (req, res) => {
 
 // Update user profile
 exports.updateUserProfile = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  let retries = 3; // Retry up to 3 times in case of a write conflict
 
-  try {
-    const userid = req.user.userId;
-    if (!userid) return res.status(400).json({ error: "User ID is required." });
+  while (retries > 0) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    const {
-      name,
-      username,  // ✅ Added username update
-      bio,
-      LinkedInUrl,
-      githubUsername,
-      Graduation,
-      useGithubAvatar,
-      githubAvatarUrl
-    } = req.body;
+    try {
+      const userid = req.user.userId;
+      if (!userid) return res.status(400).json({ error: "User ID is required." });
 
-    console.log("Received username:", username);
-    console.log("Received githubUsername:", githubUsername);
+      const {
+        name,
+        username,
+        bio,
+        LinkedInUrl,
+        githubUsername,
+        Graduation,
+        useGithubAvatar,
+        githubAvatarUrl
+      } = req.body;
 
-    if (!gittoken) {
-      console.error("GitHub token is missing!");
-      return res.status(500).json({ error: "GitHub authentication token is missing." });
-    }
+      console.log("Received username:", username);
+      console.log("Received githubUsername:", githubUsername);
 
-    const changeableFields = {
-      name,
-      username,  // ✅ Include username in changeable fields
-      bio,
-      LinkedInUrl,
-      githubUsername,
-      Graduation,
-      useGithubAvatar,
-      githubAvatarUrl
-    };
+      if (!gittoken) {
+        console.error("GitHub token is missing!");
+        return res.status(500).json({ error: "GitHub authentication token is missing." });
+      }
 
-    // Remove undefined fields
-    Object.keys(changeableFields).forEach((key) => {
-      if (changeableFields[key] === undefined) delete changeableFields[key];
-    });
+      const changeableFields = {
+        name,
+        username,
+        bio,
+        LinkedInUrl,
+        githubUsername,
+        Graduation,
+        useGithubAvatar,
+        githubAvatarUrl
+      };
 
-    if (Object.keys(changeableFields).length === 0) {
-      return res.status(400).json({ error: "No valid fields to update." });
-    }
+      Object.keys(changeableFields).forEach((key) => {
+        if (changeableFields[key] === undefined) delete changeableFields[key];
+      });
 
-    // Check if the new username is already taken
-    if (username) {
-      const existingUser = await UserProfile.findOne({ username }).session(session);
-      if (existingUser && existingUser.userid.toString() !== userid.toString()) {
-        return res.status(400).json({ error: "Username already exists." });
+      if (Object.keys(changeableFields).length === 0) {
+        return res.status(400).json({ error: "No valid fields to update." });
+      }
+
+      // Check for unique username before updating
+      if (username) {
+        const existingUser = await UserProfile.findOne({ username }).session(session);
+        if (existingUser && existingUser.userid.toString() !== userid.toString()) {
+          return res.status(400).json({ error: "Username already exists." });
+        }
+      }
+
+      const userProfile = await UserProfile.findOne({ userid }).session(session);
+      if (!userProfile) {
+        return res.status(404).json({ error: "User profile not found." });
+      }
+
+      if (githubUsername && githubUsername !== userProfile.githubUsername) {
+        console.log(`Fetching GitHub data for username: ${githubUsername}`);
+
+        try {
+          const githubResponse = await axios.get(
+            `https://api.github.com/users/${githubUsername}`,
+            { headers: { Authorization: `token ${gittoken}` } }
+          );
+
+          console.log("GitHub API Response:", githubResponse.data);
+
+          changeableFields.githubPublicRepos = githubResponse.data.public_repos;
+          changeableFields.githubAvatarUrl = githubResponse.data.avatar_url;
+        } catch (githubError) {
+          console.error("GitHub API Error Response:", githubError.response?.data || githubError.message);
+
+          return res.status(400).json({
+            error: "Invalid GitHub username or API request failed.",
+            details: githubError.response?.data?.message || githubError.message,
+          });
+        }
+      }
+
+      Object.assign(userProfile, changeableFields);
+      await userProfile.save({ session });
+
+      // ✅ Also update `User` schema with new username & name
+      await mongoose.model("User").findByIdAndUpdate(
+        userid,
+        { name: userProfile.name, username: userProfile.username },
+        { session }
+      );
+
+      await session.commitTransaction();
+      session.endSession();
+
+      const { _id, ...profileWithoutId } = userProfile.toObject();
+      return res.json({ message: "Profile updated successfully", userProfile: profileWithoutId });
+
+    } catch (err) {
+      await session.abortTransaction();
+      session.endSession();
+
+      // If write conflict occurs, retry the operation
+      if (err.message.includes("Write conflict")) {
+        console.warn("Write conflict detected, retrying...");
+        retries--;
+        if (retries === 0) {
+          return res.status(500).json({ error: "Write conflict persisted after retries. Please try again later." });
+        }
+      } else {
+        console.error("Update profile error:", err);
+        return res.status(500).json({ error: err.message });
       }
     }
-
-    const userProfile = await UserProfile.findOne({ userid }).session(session);
-    if (!userProfile) {
-      return res.status(404).json({ error: "User profile not found." });
-    }
-
-    // Handle GitHub username update
-    if (githubUsername && githubUsername !== userProfile.githubUsername) {
-      console.log(`Fetching GitHub data for username: ${githubUsername}`);
-
-      try {
-        const githubResponse = await axios.get(
-          `https://api.github.com/users/${githubUsername}`,
-          {
-            headers: { Authorization: `token ${gittoken}` }
-          }
-        );
-
-        console.log("GitHub API Response:", githubResponse.data);
-
-        changeableFields.githubPublicRepos = githubResponse.data.public_repos;
-        changeableFields.githubAvatarUrl = githubResponse.data.avatar_url;
-      } catch (githubError) {
-        console.error("GitHub API Error Response:", githubError.response?.data || githubError.message);
-
-        return res.status(400).json({
-          error: "Invalid GitHub username or API request failed.",
-          details: githubError.response?.data?.message || githubError.message,
-        });
-      }
-    }
-
-    Object.assign(userProfile, changeableFields);
-    await userProfile.save({ session });
-
-    // ✅ Also update `User` schema with new username & name
-    await mongoose.model("User").findByIdAndUpdate(
-      userid,
-      { name: userProfile.name, username: userProfile.username },
-      { session }
-    );
-
-    await session.commitTransaction();
-    session.endSession();
-
-    const { _id, ...profileWithoutId } = userProfile.toObject();
-    res.json({ message: "Profile updated successfully", userProfile: profileWithoutId });
-
-  } catch (err) {
-    await session.abortTransaction();
-    session.endSession();
-    console.error("Update profile error:", err);
-    res.status(500).json({ error: err.message });
   }
 };
+
 
 // Follow a user
 exports.followUser = async (req, res) => {
