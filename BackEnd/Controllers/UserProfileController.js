@@ -39,7 +39,7 @@ exports.getUserProfileByusername = async (req, res) => {
     // Find the user profile by username and select only the required fields
     const userProfile = await UserProfile.findOne({ username })
       .select(
-        "userid name bio username tags LinkedInUrl Githubusername noOfQuestions Graduation noOfAnswers avgRating totalPoints questionIds answerIds achievements followers following noOfFollowers noOfFollowing imageUrl"
+        "userid name bio username tags LinkedInUrl githubUsername noOfQuestions Graduation noOfAnswers avgRating totalPoints questionIds answerIds achievements followers following noOfFollowers noOfFollowing imageUrl"
       )
       .lean(); // Use lean() for a plain JavaScript object (better performance)
 
@@ -87,132 +87,92 @@ exports.createUserProfile = async (req, res) => {
 
   try {
     const userid = req.user.userId;
-    const loginemail = req.user.loginemail;
-
     if (!userid) return res.status(400).json({ error: "User ID is required." });
+
     if (!mongoose.Types.ObjectId.isValid(userid))
       return res.status(400).json({ error: "Invalid user ID format." });
 
     const user = await User.findById(userid).session(session);
     if (!user) return res.status(404).json({ error: "User not found." });
 
-    const {
-      name,
-      bio,
-      tags,
-      LinkedInUrl,
-      githubUsername,
-      useGithubAvatar,
-      Graduation,
-      backupemail,
-    } = req.body;
+    const { name, bio, tags, LinkedInUrl, githubUsername, useGithubAvatar, Graduation, backupemail } = req.body;
 
     if (tags && tags.length > 3) {
-      return res.status(400).json({
-        error: "You can only have up to 3 tags.",
-        yourTags: tags,
-        length: tags.length,
-      });
+      return res.status(400).json({ error: "You can only have up to 3 tags." });
     }
 
-    // Ensure LinkedInUrl, githubUsername, and backupemail are unique
-    if (LinkedInUrl) {
-      const existingLinkedIn = await UserProfile.findOne({
-        LinkedInUrl,
-      }).session(session);
-      if (existingLinkedIn)
-        return res.status(400).json({ error: "LinkedIn URL already in use." });
-    }
+    const avatarColor = Math.floor(Math.random() * 16777215).toString(16);
+    let githubPublicRepos = 0;
+    let githubAvatarUrl = "";
 
     if (githubUsername) {
-      const existingGithub = await UserProfile.findOne({
-        githubUsername,
-      }).session(session);
+      const existingGithub = await UserProfile.findOne({ githubUsername }).session(session);
       if (existingGithub)
-        return res
-          .status(400)
-          .json({ error: "GitHub username already in use." });
+        return res.status(400).json({ error: "GitHub username already in use." });
 
-      // Fetch GitHub Data (Public Repos & Avatar)
       try {
         const githubResponse = await axios.get(
           `https://api.github.com/users/${githubUsername}`,
-          {
-            headers: {
-              Authorization: `token ${gittoken}`
-            }
-          }
+          { headers: { Authorization: `token ${gittoken}` } }
         );
-
-        var githubPublicRepos = githubResponse.data.public_repos;
-        var githubAvatarUrl = githubResponse.data.avatar_url;
+        githubPublicRepos = githubResponse.data.public_repos;
+        githubAvatarUrl = githubResponse.data.avatar_url;
       } catch (githubError) {
-        return res
-          .status(400)
-          .json({ error: "Invalid GitHub username or API request failed." });
+        return res.status(400).json({ error: "Invalid GitHub username or API request failed." });
       }
     }
 
-    if (backupemail) {
-      const existingBackupEmail = await UserProfile.findOne({
+    const imageUrl = useGithubAvatar && githubAvatarUrl ? githubAvatarUrl : generateImageUrl(name, avatarColor);
+
+    // **Instead of creating a new profile, update or insert**
+    const userProfile = await UserProfile.findOneAndUpdate(
+      { userid }, // Check if user profile exists
+      {
+        userid,
+        name,
+        username: user.username,
+        clgemail: req.user.loginemail,
+        bio,
+        tags,
+        LinkedInUrl,
+        avatarColor,
+        useGithubAvatar: !!useGithubAvatar,
+        githubUsername: githubUsername || undefined,
+        githubPublicRepos,
+        githubAvatarUrl,
+        Graduation,
         backupemail,
-      }).session(session);
-      if (existingBackupEmail)
-        return res.status(400).json({ error: "Backup email already in use." });
-    }
-    const avatarColor = Math.floor(Math.random() * 16777215).toString(16);
-    const imageUrl =
-      useGithubAvatar && githubAvatarUrl
-        ? githubAvatarUrl
-        : generateImageUrl(name, avatarColor);
-
-    const userProfileData = {
-      userid,
-      name,
-      username: user.username,
-      clgemail: loginemail,
-      bio,
-      tags,
-      LinkedInUrl,
-      avatarColor,
-      useGithubAvatar: !!useGithubAvatar,
-       githubUsername: githubUsername || undefined,
-      githubPublicRepos: githubPublicRepos || 0,
-      githubAvatarUrl: githubAvatarUrl || "",
-      Graduation,
-      backupemail,
-      imageUrl,
-    };
-
-    // Save the profile
-    const userProfile = new UserProfile(userProfileData);
-    await userProfile.save({ session });
+        imageUrl,
+      },
+      { new: true, upsert: true, session } // **Use `upsert: true` to prevent conflicts**
+    );
 
     if (tags && tags.length > 0) {
       for (const tag of tags) {
         await Tag.findOneAndUpdate(
-          { tagName: tag }, // Check if tag exists
-          { $addToSet: { users: userid } }, // Add user if not already added
-          { upsert: true, session, new: true } // Create tag if not exists
+          { tagName: tag },
+          { $addToSet: { users: userid } },
+          { upsert: true, session, new: true }
         );
       }
     }
 
-    // Mark user profile as completed
     user.isProfileCompleted = true;
     await user.save({ session });
 
-    // Commit transaction
     await session.commitTransaction();
     session.endSession();
 
-    res
-      .status(201)
-      .json({ message: "User profile created successfully!", userProfile });
+    return res.status(201).json({ message: "User profile created successfully!", userProfile });
+
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    res.status(500).json({ error: err.message });
+
+    if (err.message.includes("Write conflict")) {
+      return res.status(500).json({ error: "Database conflict. Please try again later." });
+    }
+    return res.status(500).json({ error: err.message });
   }
 };
 
