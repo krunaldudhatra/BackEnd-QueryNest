@@ -1,23 +1,5 @@
 const mongoose = require("mongoose");
 
-// Function to generate a random color
-function generateRandomColor() {
-  return Math.floor(Math.random() * 16777215).toString(16);
-}
-
-// Function to generate the avatar URL
-function generateImageUrl(name) {
-  if (!name) return "";
-  const words = name.split(" ");
-  const initials =
-    words.length >= 2
-      ? words[0][0].toUpperCase() + words[1][0].toUpperCase()
-      : words[0][0].toUpperCase();
-
-  const randomColor = generateRandomColor();
-  return `https://ui-avatars.com/api/?name=${initials}&background=${randomColor}&color=fff`;
-}
-
 const UserSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
@@ -27,21 +9,7 @@ const UserSchema = new mongoose.Schema(
     password: { type: String, required: true },
     isProfileCompleted: { type: Boolean, default: false },
 
-    // Image URL should be dynamic based on UserProfile
-    imageUrl: {
-      type: String,
-      default: async function () {
-        const userProfile = await mongoose.model("UserProfile").findOne({ userid: this._id });
-
-        if (userProfile) {
-          return userProfile.useGithubAvatar && userProfile.githubAvatarUrl
-            ? userProfile.githubAvatarUrl
-            : generateImageUrl(userProfile.name);
-        }
-
-        return generateImageUrl(this.name); // Fallback
-      },
-    },
+    imageUrl: { type: String }, // Updated from UserProfile
   },
   { timestamps: true }
 );
@@ -67,7 +35,7 @@ UserSchema.pre("save", async function (next) {
 
     if (!userProfile) {
       console.log(`⚠️ No UserProfile found for User ID: ${this._id}`);
-      return next();
+      return next(); // Continue saving the User even if the profile does not exist
     }
 
     console.log(`✅ Updating User fields from UserProfile for User ID: ${this._id}`);
@@ -77,12 +45,7 @@ UserSchema.pre("save", async function (next) {
     this.username = userProfile.username;
     this.clgemail = userProfile.clgemail;
     this.backupemail = userProfile.backupemail;
-
-    // ✅ Sync imageUrl based on UserProfile's logic
-    this.imageUrl =
-      userProfile.useGithubAvatar && userProfile.githubAvatarUrl
-        ? userProfile.githubAvatarUrl
-        : generateImageUrl(userProfile.name);
+    this.imageUrl = userProfile.imageUrl;
 
     await session.commitTransaction();
     session.endSession();
