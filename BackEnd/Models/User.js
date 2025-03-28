@@ -1,5 +1,21 @@
 const mongoose = require("mongoose");
 
+function generateRandomColor() {
+  return Math.floor(Math.random() * 16777215).toString(16);
+}
+
+// Function to generate the avatar URL
+function generateImageUrl(name) {
+  if (!name) return "";
+  const words = name.split(" ");
+  const initials =
+    words.length >= 2
+      ? words[0][0].toUpperCase() + words[1][0].toUpperCase()
+      : words[0][0].toUpperCase();
+
+  const randomColor = generateRandomColor();
+  return `https://ui-avatars.com/api/?name=${initials}&background=${randomColor}&color=fff`;
+}
 const UserSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
@@ -9,7 +25,11 @@ const UserSchema = new mongoose.Schema(
     password: { type: String, required: true },
     isProfileCompleted: { type: Boolean, default: false },
 
-    imageUrl: { type: String }, // Updated from UserProfile
+    imageUrl: { type: String,default: function () {
+      return this.useGithubAvatar && this.githubAvatarUrl
+        ? this.githubAvatarUrl
+        : generateImageUrl(this.name);
+    }, }, // Updated from UserProfile
   },
   { timestamps: true }
 );
