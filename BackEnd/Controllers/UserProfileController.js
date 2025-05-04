@@ -39,7 +39,7 @@ exports.getUserProfileByusername = async (req, res) => {
     // Find the user profile by username and select only the required fields
     const userProfile = await UserProfile.findOne({ username })
       .select(
-        "userid name bio username tags LinkedInUrl githubUsername githubPublicRepos githubAvatarUrl useGithubAvatar noOfQuestions Graduation noOfAnswers avgRating totalPoints questionIds answerIds achievements followers following noOfFollowers noOfFollowing imageUrl"
+        "userid name bio username avgRating tags LinkedInUrl githubUsername githubPublicRepos githubAvatarUrl useGithubAvatar noOfQuestions Graduation noOfAnswers avgRating totalPoints questionIds answerIds achievements followers following noOfFollowers noOfFollowing imageUrl"
       )
       .lean(); // Use lean() for a plain JavaScript object (better performance)
 

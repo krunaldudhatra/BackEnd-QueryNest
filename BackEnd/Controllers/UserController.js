@@ -185,7 +185,7 @@ exports.loginUser = async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id, email:email },
+      { userId: user._id, email:user.email },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
@@ -326,16 +326,16 @@ exports.resetPassword = async (req, res) => {
 
         // Send confirmation email
         try {
-            await transporter.sendMail({
-                from: EMAIL_USER,
-                to: primaryEmail || fallbackEmail,
-                subject: "Password Reset Successful 🎉",
-                html: `
+            transporter.sendMail({
+            from: EMAIL_USER,
+            to: primaryEmail || fallbackEmail,
+            subject: "Password Reset Successful 🎉",
+            html: `
                     <h1>Password Reset Successful</h1>
                     <p>Your password has been successfully reset. You can now log in with your new password.</p>
                     <p>If you didn’t perform this action, please contact support immediately.</p>
                 `,
-            });
+          });
         } catch (emailError) {
             console.error("Error sending email to primary:", emailError.message);
 

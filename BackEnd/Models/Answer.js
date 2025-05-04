@@ -28,13 +28,21 @@ const AnswerSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-   ratings: [
-      {
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-        rating: { type: Number, min: 0, max: 5 },
+    ratings: [{
+      userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+      },
+      rating: {
+        type: Number,
+        min: 1,
+        max: 5,
+        required: true
       }
-    ],
-    rating: { type: Number, default: null}, // Average rating
+    }],
+    
+   
 
     point: { type: Number, default: 0 },
   },

@@ -50,14 +50,13 @@ const UserProfileSchema = new mongoose.Schema(
     },
 
     // GitHub-related fields
-  githubUsername: {
-  type: String,
-  unique: true,
-  sparse: true,  // ✅ Allows multiple documents without githubUsername
-  default: undefined,
-  set: (v) => (!v || v === "" ? undefined : v), // ✅ Prevents storing `null`
-},
-
+    githubUsername: {
+      type: String,
+      unique: true,
+      sparse: true, // ✅ Allows multiple documents without githubUsername
+      default: undefined,
+      set: (v) => (!v || v === "" ? undefined : v), // ✅ Prevents storing `null`
+    },
 
     githubPublicRepos: { type: Number, default: 0 },
     githubAvatarUrl: { type: String, default: "" },
@@ -77,21 +76,40 @@ const UserProfileSchema = new mongoose.Schema(
     noOfQuestions: { type: Number, default: 0 },
     Graduation: { type: String },
     noOfAnswers: { type: Number, default: 0 },
+    avgRating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    
 
     totalPoints: {
       type: Number,
       default: 0,
       min: [0, "Total points cannot be negative."],
     },
-    questionIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Question", default: [] }],
-    answerIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Answer", default: [] }],
+    questionIds: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "Question", default: [] },
+    ],
+    answerIds: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "Answer", default: [] },
+    ],
     achievements: [{ type: String, default: [] }],
-    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User", default: [] }],
-    following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User", default: [] }],
+    followers: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "User", default: [] },
+    ],
+    following: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "User", default: [] },
+    ],
     noOfFollowers: { type: Number, default: 0 },
     noOfFollowing: { type: Number, default: 0 },
-    likedQuestion: [{ type: mongoose.Schema.Types.ObjectId, ref: "Question", default: [] }],
-    likedAnswer: [{ type: mongoose.Schema.Types.ObjectId, ref: "Answer", default: [] }],
+    likedQuestion: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "Question", default: [] },
+    ],
+    likedAnswer: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "Answer", default: [] },
+    ],
   },
   { timestamps: true }
 );
@@ -118,9 +136,6 @@ UserProfileSchema.pre("validate", function (next) {
   }
   next();
 });
-
-
-
 
 // Middleware to sync updates with the User schema
 UserProfileSchema.pre("save", async function (next) {
@@ -168,7 +183,11 @@ UserProfileSchema.pre("save", async function (next) {
     }
 
     // Ensure `imageUrl` updates correctly based on `useGithubAvatar`
-    if (this.isModified("useGithubAvatar") || this.isModified("githubAvatarUrl") || this.isModified("githubUsername")) {
+    if (
+      this.isModified("useGithubAvatar") ||
+      this.isModified("githubAvatarUrl") ||
+      this.isModified("githubUsername")
+    ) {
       this.imageUrl =
         this.useGithubAvatar && this.githubAvatarUrl
           ? this.githubAvatarUrl
@@ -184,11 +203,9 @@ UserProfileSchema.pre("save", async function (next) {
       imageUrl: this.imageUrl, // Updated imageUrl
     };
 
-    const updatedUser = await mongoose.model("User").findByIdAndUpdate(
-      this.userid,
-      updatedUserData,
-      { new: true, session }
-    );
+    const updatedUser = await mongoose
+      .model("User")
+      .findByIdAndUpdate(this.userid, updatedUserData, { new: true, session });
 
     if (!updatedUser) {
       await session.abortTransaction();

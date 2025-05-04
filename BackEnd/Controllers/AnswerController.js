@@ -305,58 +305,66 @@ exports.deleteAnswer = async (req, res) => {
   }
 };
 
-exports.rateAnswer = async (req, res) => {
+async function updateUserAvgRating(userId) {
+  const answers = await Answer.find({ userId });
+
+  let totalRatings = 0;
+  let ratingCount = 0;
+
+  answers.forEach(answer => {
+    if (answer.ratings && answer.ratings.length > 0) {
+      totalRatings += answer.ratings.reduce((sum, r) => sum + r.rating, 0); // changed to .rating
+      ratingCount += answer.ratings.length;
+    }
+  });
+
+  const avgRating = ratingCount > 0 ? totalRatings / ratingCount : 0;
+
+  await UserProfile.findOneAndUpdate(
+    { userid: userId },
+    { avgRating },
+    { new: true }
+  );
+}
+
+
+// Update user average rating via API
+exports.addOrUpdateRating = async (req, res) => {
   try {
-    const userId = req.user?.userId; // Authenticated user's ID
+    const userId = req.user.userId; // Authenticated user
     const { answerId, rating } = req.body;
 
-    if (!userId || !answerId || rating === undefined) {
-      return res.status(400).json({ message: "User ID, Answer ID, and rating are required." });
-    }
-
     if (!mongoose.Types.ObjectId.isValid(answerId)) {
-      return res.status(400).json({ message: "Invalid answer ID." });
+      return res.status(400).json({ error: "Invalid answer ID." });
     }
 
-    if (rating < 0 || rating > 5) {
-      return res.status(400).json({ message: "Rating must be between 0 and 5." });
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: "Rating must be between 1 and 5." });
     }
 
     const answer = await Answer.findById(answerId);
     if (!answer) {
-      return res.status(404).json({ message: "Answer not found." });
+      return res.status(404).json({ error: "Answer not found." });
     }
 
-    // Ensure ratings array exists
-    if (!Array.isArray(answer.ratings)) {
-      answer.ratings = [];
-    }
+    const existingRatingIndex = answer.ratings.findIndex(r => r.userId.toString() === userId);
 
-    // Check if user has already rated the answer
-    let userRating = answer.ratings.find(r => r.userId.toString() === userId);
-
-    if (userRating) {
+    if (existingRatingIndex >= 0) {
       // Update existing rating
-      userRating.rating = rating;
+      answer.ratings[existingRatingIndex].rating = rating;
     } else {
       // Add new rating
       answer.ratings.push({ userId, rating });
     }
 
-    // Calculate new average rating
-    const totalRatings = answer.ratings.length;
-    const sumRatings = answer.ratings.reduce((sum, r) => sum + r.rating, 0);
-    answer.rating = sumRatings / totalRatings;
-
     await answer.save();
 
-    res.status(200).json({
-      message: "Answer rated successfully.",
-      updatedRating: answer.rating,
-    });
+    // ✅ Update avg rating for the answer's author
+    await updateUserAvgRating(answer.userId);
 
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.json({ message: "Rating submitted successfully", answer });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
